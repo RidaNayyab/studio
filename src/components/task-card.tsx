@@ -89,8 +89,11 @@ export function TaskCard({ task, onToggleComplete, onDelete }: TaskCardProps) {
           </p>
         )}
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <Badge variant={priorityVariant[task.priority]}>{task.priority}</Badge>
+      <CardFooter className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Badge variant={priorityVariant[task.priority]}>{task.priority}</Badge>
+          <Badge variant="outline">{task.category}</Badge>
+        </div>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button

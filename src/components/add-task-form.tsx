@@ -35,6 +35,7 @@ const formSchema = z.object({
     required_error: "A due date is required.",
   }),
   priority: z.enum(["Low", "Medium", "High"]),
+  category: z.string().min(1, { message: "Category is required." }),
 });
 
 type AddTaskFormProps = {
@@ -51,6 +52,7 @@ export function AddTaskForm({ addTask, setOpen }: AddTaskFormProps) {
       title: "",
       description: "",
       priority: "Medium",
+      category: "",
     },
   });
 
@@ -60,6 +62,7 @@ export function AddTaskForm({ addTask, setOpen }: AddTaskFormProps) {
       description: values.description,
       dueDate: values.dueDate,
       priority: values.priority,
+      category: values.category,
     });
     toast({
       title: "Task created!",
@@ -80,6 +83,19 @@ export function AddTaskForm({ addTask, setOpen }: AddTaskFormProps) {
               <FormLabel>Title</FormLabel>
               <FormControl>
                 <Input placeholder="e.g. Finish project proposal" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. Work, Personal..." {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

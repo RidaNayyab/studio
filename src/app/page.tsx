@@ -34,6 +34,7 @@ const initialTasks: Task[] = [
     dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
     priority: "High",
     completed: true,
+    category: "Work",
   },
   {
     id: "2",
@@ -42,6 +43,7 @@ const initialTasks: Task[] = [
     dueDate: new Date(new Date().setDate(new Date().getDate() + 3)),
     priority: "Medium",
     completed: false,
+    category: "Work",
   },
   {
     id: "3",
@@ -50,6 +52,7 @@ const initialTasks: Task[] = [
     dueDate: new Date(new Date().setDate(new Date().getDate() + 5)),
     priority: "High",
     completed: false,
+    category: "Personal",
   },
   {
     id: "4",
@@ -58,6 +61,7 @@ const initialTasks: Task[] = [
     dueDate: new Date(new Date().setDate(new Date().getDate() + 7)),
     priority: "Low",
     completed: false,
+    category: "Work",
   },
 ];
 
@@ -66,6 +70,7 @@ export default function Home() {
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [filter, setFilter] = useState<FilterOption>("all");
   const [sort, setSort] = useState<SortOption>("dueDate");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   const addTask = (task: Omit<Task, "id" | "completed">) => {
     const newTask: Task = {
@@ -88,6 +93,11 @@ export default function Home() {
     setTasks(tasks.filter((task) => task.id !== id));
   };
 
+  const categories = useMemo(() => {
+    const allCategories = tasks.map((task) => task.category);
+    return ["all", ...Array.from(new Set(allCategories))];
+  }, [tasks]);
+
   const priorityOrder: Record<TaskPriority, number> = { High: 3, Medium: 2, Low: 1 };
 
   const filteredAndSortedTasks = useMemo(() => {
@@ -97,6 +107,10 @@ export default function Home() {
         if (filter === "incomplete") return !task.completed;
         return true;
       })
+      .filter((task) => {
+        if (categoryFilter === "all") return true;
+        return task.category === categoryFilter;
+      })
       .sort((a, b) => {
         if (sort === "priority") {
           return priorityOrder[b.priority] - priorityOrder[a.priority];
@@ -104,7 +118,7 @@ export default function Home() {
         // Default to sorting by due date
         return a.dueDate.getTime() - b.dueDate.getTime();
       });
-  }, [tasks, filter, sort]);
+  }, [tasks, filter, sort, categoryFilter]);
 
   return (
     <div className="min-h-screen w-full">
@@ -134,7 +148,7 @@ export default function Home() {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-2xl font-semibold">Your Tasks</h2>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium">Filter</label>
               <Select
@@ -148,6 +162,24 @@ export default function Home() {
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="incomplete">Incomplete</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">Category</label>
+              <Select
+                value={categoryFilter}
+                onValueChange={(value) => setCategoryFilter(value)}
+              >
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category === "all" ? "All" : category}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
