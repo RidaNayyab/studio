@@ -24,7 +24,6 @@ import { Logo } from "@/components/icons";
 import type { Task, TaskPriority } from "@/lib/types";
 
 type SortOption = "dueDate" | "priority";
-type FilterOption = "all" | "completed" | "incomplete";
 
 const initialTasks: Task[] = [
   {
@@ -68,7 +67,6 @@ const initialTasks: Task[] = [
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [isDialogOpen, setDialogOpen] = useState(false);
-  const [filter, setFilter] = useState<FilterOption>("all");
   const [sort, setSort] = useState<SortOption>("dueDate");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
@@ -100,13 +98,8 @@ export default function Home() {
 
   const priorityOrder: Record<TaskPriority, number> = { High: 3, Medium: 2, Low: 1 };
 
-  const filteredAndSortedTasks = useMemo(() => {
+  const baseFilteredAndSortedTasks = useMemo(() => {
     return tasks
-      .filter((task) => {
-        if (filter === "completed") return task.completed;
-        if (filter === "incomplete") return !task.completed;
-        return true;
-      })
       .filter((task) => {
         if (categoryFilter === "all") return true;
         return task.category === categoryFilter;
@@ -115,10 +108,18 @@ export default function Home() {
         if (sort === "priority") {
           return priorityOrder[b.priority] - priorityOrder[a.priority];
         }
-        // Default to sorting by due date
         return a.dueDate.getTime() - b.dueDate.getTime();
       });
-  }, [tasks, filter, sort, categoryFilter]);
+  }, [tasks, sort, categoryFilter]);
+  
+  const incompleteTasks = useMemo(() => {
+    return baseFilteredAndSortedTasks.filter((task) => !task.completed);
+  }, [baseFilteredAndSortedTasks]);
+
+  const completedTasks = useMemo(() => {
+    return baseFilteredAndSortedTasks.filter((task) => task.completed);
+  }, [baseFilteredAndSortedTasks]);
+
 
   return (
     <div className="min-h-screen w-full">
@@ -149,22 +150,6 @@ export default function Home() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-2xl font-semibold">Your Tasks</h2>
           <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Filter</label>
-              <Select
-                value={filter}
-                onValueChange={(value) => setFilter(value as FilterOption)}
-              >
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Filter tasks" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="incomplete">Incomplete</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium">Category</label>
               <Select
@@ -200,16 +185,56 @@ export default function Home() {
             </div>
           </div>
         </div>
-        {filteredAndSortedTasks.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredAndSortedTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onToggleComplete={toggleComplete}
-                onDelete={deleteTask}
-              />
-            ))}
+        {tasks.length > 0 ? (
+           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <div>
+              <h3 className="mb-4 text-xl font-semibold">Incomplete</h3>
+              <div className="space-y-4">
+                {incompleteTasks.length > 0 ? (
+                  incompleteTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onToggleComplete={toggleComplete}
+                      onDelete={deleteTask}
+                    />
+                  ))
+                ) : (
+                  <div className="flex h-48 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
+                    <p className="text-lg font-medium text-muted-foreground">
+                      No incomplete tasks.
+                    </p>
+                     <p className="text-sm text-muted-foreground">
+                      Great job!
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div>
+              <h3 className="mb-4 text-xl font-semibold">Completed</h3>
+              <div className="space-y-4">
+                {completedTasks.length > 0 ? (
+                  completedTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onToggleComplete={toggleComplete}
+                      onDelete={deleteTask}
+                    />
+                  ))
+                ) : (
+                  <div className="flex h-48 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
+                    <p className="text-lg font-medium text-muted-foreground">
+                      No completed tasks.
+                    </p>
+                     <p className="text-sm text-muted-foreground">
+                      Keep up the good work!
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         ) : (
           <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
