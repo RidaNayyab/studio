@@ -39,7 +39,7 @@ const formSchema = z.object({
 });
 
 type AddTaskFormProps = {
-  addTask: (task: Omit<Task, "id" | "completed">) => void;
+  addTask: (task: Omit<Task, "id" | "completed" | "subtasks">) => void;
   setOpen: (open: boolean) => void;
 };
 

@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { format } from "date-fns";
-import { Calendar, Trash2 } from "lucide-react";
+import { Calendar, Trash2, Plus, ChevronDown, ChevronUp } from "lucide-react";
 
 import {
   Card,
@@ -14,6 +15,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { Task, TaskPriority } from "@/lib/types";
 import {
@@ -27,11 +30,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 
 type TaskCardProps = {
   task: Task;
   onToggleComplete: (id: string) => void;
   onDelete: (id: string) => void;
+  onAddSubtask: (taskId: string, subtaskTitle: string) => void;
+  onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
+  onDeleteSubtask: (taskId: string, subtaskId: string) => void;
 };
 
 const priorityVariant: Record<TaskPriority, "default" | "secondary" | "destructive"> = {
@@ -40,7 +48,25 @@ const priorityVariant: Record<TaskPriority, "default" | "secondary" | "destructi
   High: "destructive",
 };
 
-export function TaskCard({ task, onToggleComplete, onDelete }: TaskCardProps) {
+export function TaskCard({ 
+  task, 
+  onToggleComplete, 
+  onDelete,
+  onAddSubtask,
+  onToggleSubtaskComplete,
+  onDeleteSubtask,
+}: TaskCardProps) {
+  const [newSubtask, setNewSubtask] = useState("");
+  const [isSubtasksOpen, setSubtasksOpen] = useState(false);
+
+  const handleAddSubtask = () => {
+    onAddSubtask(task.id, newSubtask);
+    setNewSubtask("");
+  }
+  
+  const subtasksCompleted = task.subtasks.filter(st => st.completed).length;
+  const subtasksTotal = task.subtasks.length;
+
   return (
     <Card
       className={cn(
@@ -77,7 +103,7 @@ export function TaskCard({ task, onToggleComplete, onDelete }: TaskCardProps) {
           <span>Due by {format(task.dueDate, "PPP")}</span>
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow">
+      <CardContent className="flex-grow space-y-4">
         {task.description && (
           <p
             className={cn(
@@ -88,6 +114,56 @@ export function TaskCard({ task, onToggleComplete, onDelete }: TaskCardProps) {
             {task.description}
           </p>
         )}
+        
+        {subtasksTotal > 0 && <Separator />}
+
+        <Collapsible open={isSubtasksOpen} onOpenChange={setSubtasksOpen}>
+          {subtasksTotal > 0 && (
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="flex w-full justify-between px-0 hover:bg-transparent">
+                <span className="text-sm font-medium">
+                  {subtasksCompleted} / {subtasksTotal} Sub-tasks
+                </span>
+                {isSubtasksOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </CollapsibleTrigger>
+          )}
+          <CollapsibleContent className="space-y-2">
+            <div className="mt-2 space-y-2">
+              {task.subtasks.map(subtask => (
+                <div key={subtask.id} className="flex items-center gap-2">
+                  <Checkbox 
+                    id={`subtask-${subtask.id}`}
+                    checked={subtask.completed} 
+                    onCheckedChange={() => onToggleSubtaskComplete(task.id, subtask.id)}
+                  />
+                  <label 
+                    htmlFor={`subtask-${subtask.id}`}
+                    className={cn("text-sm flex-grow", subtask.completed && "line-through text-muted-foreground")}>
+                    {subtask.title}
+                  </label>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDeleteSubtask(task.id, subtask.id)}>
+                    <Trash2 className="h-3 w-3 text-muted-foreground" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+        
+        <div className="flex items-center gap-2">
+          <Input 
+            placeholder="Add a sub-task"
+            value={newSubtask}
+            onChange={(e) => setNewSubtask(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
+            className="h-8"
+          />
+          <Button size="sm" onClick={handleAddSubtask}>
+            <Plus className="h-4 w-4 mr-1"/> Add
+          </Button>
+        </div>
+
       </CardContent>
       <CardFooter className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -110,7 +186,7 @@ export function TaskCard({ task, onToggleComplete, onDelete }: TaskCardProps) {
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
                 This action cannot be undone. This will permanently delete your
-                task.
+                task and all of its sub-tasks.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

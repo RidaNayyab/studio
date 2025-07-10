@@ -34,6 +34,10 @@ const initialTasks: Task[] = [
     priority: "High",
     completed: true,
     category: "Work",
+    subtasks: [
+      { id: "sub1", title: "Install Node.js", completed: true },
+      { id: "sub2", title: "Install Next.js", completed: true },
+    ],
   },
   {
     id: "2",
@@ -43,6 +47,7 @@ const initialTasks: Task[] = [
     priority: "Medium",
     completed: false,
     category: "Work",
+    subtasks: [],
   },
   {
     id: "3",
@@ -52,6 +57,10 @@ const initialTasks: Task[] = [
     priority: "High",
     completed: false,
     category: "Personal",
+    subtasks: [
+      { id: "sub3", title: "Handle main tasks", completed: false },
+      { id: "sub4", title: "Handle sub-tasks", completed: false },
+    ],
   },
   {
     id: "4",
@@ -61,6 +70,7 @@ const initialTasks: Task[] = [
     priority: "Low",
     completed: false,
     category: "Work",
+    subtasks: [],
   },
 ];
 
@@ -70,11 +80,12 @@ export default function Home() {
   const [sort, setSort] = useState<SortOption>("dueDate");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  const addTask = (task: Omit<Task, "id" | "completed">) => {
+  const addTask = (task: Omit<Task, "id" | "completed" | "subtasks">) => {
     const newTask: Task = {
       ...task,
       id: crypto.randomUUID(),
       completed: false,
+      subtasks: [],
     };
     setTasks((prev) => [...prev, newTask]);
   };
@@ -89,6 +100,47 @@ export default function Home() {
 
   const deleteTask = (id: string) => {
     setTasks(tasks.filter((task) => task.id !== id));
+  };
+  
+  const addSubtask = (taskId: string, subtaskTitle: string) => {
+    if (!subtaskTitle.trim()) return;
+    setTasks(tasks.map(task => {
+      if (task.id === taskId) {
+        const newSubtask = {
+          id: crypto.randomUUID(),
+          title: subtaskTitle,
+          completed: false
+        };
+        return { ...task, subtasks: [...task.subtasks, newSubtask] };
+      }
+      return task;
+    }));
+  };
+
+  const toggleSubtaskComplete = (taskId: string, subtaskId: string) => {
+    setTasks(tasks.map(task => {
+      if (task.id === taskId) {
+        return {
+          ...task,
+          subtasks: task.subtasks.map(subtask => 
+            subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
+          )
+        };
+      }
+      return task;
+    }));
+  };
+
+  const deleteSubtask = (taskId: string, subtaskId: string) => {
+    setTasks(tasks.map(task => {
+      if (task.id === taskId) {
+        return {
+          ...task,
+          subtasks: task.subtasks.filter(subtask => subtask.id !== subtaskId)
+        };
+      }
+      return task;
+    }));
   };
 
   const categories = useMemo(() => {
@@ -197,6 +249,9 @@ export default function Home() {
                       task={task}
                       onToggleComplete={toggleComplete}
                       onDelete={deleteTask}
+                      onAddSubtask={addSubtask}
+                      onToggleSubtaskComplete={toggleSubtaskComplete}
+                      onDeleteSubtask={deleteSubtask}
                     />
                   ))
                 ) : (
@@ -221,6 +276,9 @@ export default function Home() {
                       task={task}
                       onToggleComplete={toggleComplete}
                       onDelete={deleteTask}
+                      onAddSubtask={addSubtask}
+                      onToggleSubtaskComplete={toggleSubtaskComplete}
+                      onDeleteSubtask={deleteSubtask}
                     />
                   ))
                 ) : (
