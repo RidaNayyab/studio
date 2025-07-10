@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useToast } from "@/hooks/use-toast";
-import type { Task } from "@/lib/types";
+import type { Task, Column } from "@/lib/types";
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -35,15 +35,16 @@ const formSchema = z.object({
     required_error: "A due date is required.",
   }),
   priority: z.enum(["Low", "Medium", "High"]),
-  category: z.string().min(1, { message: "Category is required." }),
+  columnId: z.string().min(1, { message: "Column is required." }),
 });
 
 type AddTaskFormProps = {
-  addTask: (task: Omit<Task, "id" | "status" | "subtasks">) => void;
+  addTask: (task: Omit<Task, "id" | "status" | "subtasks" | "columnId">, columnId: string) => void;
   setOpen: (open: boolean) => void;
+  columns: Column[];
 };
 
-export function AddTaskForm({ addTask, setOpen }: AddTaskFormProps) {
+export function AddTaskForm({ addTask, setOpen, columns }: AddTaskFormProps) {
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -52,21 +53,16 @@ export function AddTaskForm({ addTask, setOpen }: AddTaskFormProps) {
       title: "",
       description: "",
       priority: "Medium",
-      category: "",
+      columnId: columns.length > 0 ? columns[0].id : "",
     },
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    addTask({
-      title: values.title,
-      description: values.description,
-      dueDate: values.dueDate,
-      priority: values.priority,
-      category: values.category,
-    });
+    const { columnId, ...taskData } = values;
+    addTask(taskData, columnId);
     toast({
       title: "Task created!",
-      description: "Your new task has been added to the list.",
+      description: "Your new task has been added to the board.",
     });
     form.reset();
     setOpen(false);
@@ -90,19 +86,6 @@ export function AddTaskForm({ addTask, setOpen }: AddTaskFormProps) {
         />
         <FormField
           control={form.control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Category</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. Work, Personal..." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
           name="description"
           render={({ field }) => (
             <FormItem>
@@ -118,6 +101,31 @@ export function AddTaskForm({ addTask, setOpen }: AddTaskFormProps) {
             </FormItem>
           )}
         />
+        <FormField
+            control={form.control}
+            name="columnId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Column</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a column" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {columns.map(column => (
+                         <SelectItem key={column.id} value={column.id}>{column.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}

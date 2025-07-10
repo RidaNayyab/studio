@@ -16,6 +16,11 @@ export interface Task {
   dueDate: Date;
   priority: TaskPriority;
   status: TaskStatus;
-  category: string;
+  columnId: string;
   subtasks: SubTask[];
+}
+
+export interface Column {
+    id: string;
+    title: string;
 }

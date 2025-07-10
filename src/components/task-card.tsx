@@ -70,28 +70,20 @@ export function TaskCard({
   return (
     <Card
       className={cn(
-        "flex flex-col transition-colors",
+        "flex flex-col transition-colors w-full",
         isCompleted && "bg-accent/30",
         isDragging && "shadow-2xl opacity-80"
       )}
     >
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-2">
-            {dragHandleProps && (
+      <CardHeader className="relative">
+        {dragHandleProps && (
+            <div className="absolute top-3 right-3">
               <Button variant="ghost" size="icon" className="h-8 w-8 cursor-grab" {...dragHandleProps}>
                 <GripVertical className="h-5 w-5 text-muted-foreground" />
               </Button>
-            )}
-            <CardTitle
-              className={cn(
-                "font-semibold transition-all pt-1",
-                isCompleted && "text-muted-foreground line-through"
-              )}
-            >
-              {task.title}
-            </CardTitle>
-          </div>
+            </div>
+        )}
+        <div className="flex items-start gap-4">
           <Checkbox
             checked={isCompleted}
             onCheckedChange={() => onToggleComplete(task.id)}
@@ -100,16 +92,26 @@ export function TaskCard({
             }`}
             className="mt-1 h-5 w-5 shrink-0"
           />
+          <div className="flex-grow">
+            <CardTitle
+              className={cn(
+                "font-semibold transition-all text-lg pr-8",
+                isCompleted && "text-muted-foreground line-through"
+              )}
+            >
+              {task.title}
+            </CardTitle>
+            <CardDescription
+              className={cn(
+                "flex items-center gap-2 pt-2 text-sm",
+                isCompleted && "text-muted-foreground/80"
+              )}
+            >
+              <Calendar className="h-4 w-4" />
+              <span>Due by {format(task.dueDate, "PPP")}</span>
+            </CardDescription>
+          </div>
         </div>
-        <CardDescription
-          className={cn(
-            "flex items-center gap-2 pt-2 text-sm pl-10",
-            isCompleted && "text-muted-foreground/80"
-          )}
-        >
-          <Calendar className="h-4 w-4" />
-          <span>Due by {format(task.dueDate, "PPP")}</span>
-        </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow space-y-4">
         {task.description && (
@@ -193,7 +195,6 @@ export function TaskCard({
       <CardFooter className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Badge variant={priorityVariant[task.priority]}>{task.priority}</Badge>
-          <Badge variant="outline">{task.category}</Badge>
         </div>
         <AlertDialog>
           <AlertDialogTrigger asChild>
