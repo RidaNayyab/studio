@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus } from "lucide-react";
+import { Plus, LayoutGrid, ListTodo } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +21,7 @@ import {
 import { AddTaskForm } from "@/components/add-task-form";
 import { TaskCard } from "@/components/task-card";
 import { Logo } from "@/components/icons";
+import { Sidebar, SidebarContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
 import type { Task, TaskPriority, SubTask } from "@/lib/types";
 
 type SortOption = "dueDate" | "priority";
@@ -78,7 +79,7 @@ export default function Home() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [sort, setSort] = useState<SortOption>("dueDate");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [activeBoard, setActiveBoard] = useState<string>("All Tasks");
 
   const addTask = (task: Omit<Task, "id" | "completed" | "subtasks">) => {
     const newTask: Task = {
@@ -144,9 +145,9 @@ export default function Home() {
     }));
   };
 
-  const categories = useMemo(() => {
-    const allCategories = tasks.map((task) => task.category);
-    return ["all", ...Array.from(new Set(allCategories))];
+  const boards = useMemo(() => {
+    const categories = tasks.map((task) => task.category);
+    return ["All Tasks", ...Array.from(new Set(categories))];
   }, [tasks]);
 
   const priorityOrder: Record<TaskPriority, number> = { High: 3, Medium: 2, Low: 1 };
@@ -154,8 +155,8 @@ export default function Home() {
   const baseFilteredAndSortedTasks = useMemo(() => {
     return tasks
       .filter((task) => {
-        if (categoryFilter === "all") return true;
-        return task.category === categoryFilter;
+        if (activeBoard === "All Tasks") return true;
+        return task.category === activeBoard;
       })
       .sort((a, b) => {
         if (sort === "priority") {
@@ -163,7 +164,7 @@ export default function Home() {
         }
         return a.dueDate.getTime() - b.dueDate.getTime();
       });
-  }, [tasks, sort, categoryFilter]);
+  }, [tasks, sort, activeBoard]);
   
   const incompleteTasks = useMemo(() => {
     return baseFilteredAndSortedTasks.filter((task) => !task.completed);
@@ -175,137 +176,156 @@ export default function Home() {
 
 
   return (
-    <div className="min-h-screen w-full">
-      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+    <div className="flex">
+      <Sidebar>
+        <SidebarHeader>
           <div className="flex items-center gap-2">
             <Logo className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold text-primary">TaskFlow</h1>
+            <h1 className="text-xl font-bold text-primary">TaskFlow</h1>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Task
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Add a new task</DialogTitle>
-              </DialogHeader>
-              <AddTaskForm addTask={addTask} setOpen={setDialogOpen} />
-            </DialogContent>
-          </Dialog>
-        </div>
-      </header>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => setActiveBoard("All Tasks")}
+                isActive={activeBoard === "All Tasks"}
+                tooltip="All Tasks"
+              >
+                <LayoutGrid />
+                <span>All Tasks</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            {boards.filter(b => b !== "All Tasks").map(board => (
+              <SidebarMenuItem key={board}>
+                <SidebarMenuButton
+                  onClick={() => setActiveBoard(board)}
+                  isActive={activeBoard === board}
+                  tooltip={board}
+                >
+                  <ListTodo />
+                  <span>{board}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset>
+        <div className="min-h-screen w-full">
+          <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-sm">
+            <div className="container mx-auto flex h-16 items-center justify-between px-4">
+               <SidebarTrigger />
+              <h2 className="text-2xl font-semibold">{activeBoard}</h2>
+              <div className="flex items-center gap-4">
+                <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Task
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Add a new task</DialogTitle>
+                    </DialogHeader>
+                    <AddTaskForm addTask={addTask} setOpen={setDialogOpen} />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+          </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-2xl font-semibold">Your Tasks</h2>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Category</label>
-              <Select
-                value={categoryFilter}
-                onValueChange={(value) => setCategoryFilter(value)}
-              >
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Filter by category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category === "all" ? "All" : category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <main className="container mx-auto px-4 py-8">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Sort by</label>
+                  <Select
+                    value={sort}
+                    onValueChange={(value) => setSort(value as SortOption)}
+                  >
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue placeholder="Sort tasks" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dueDate">Due Date</SelectItem>
+                      <SelectItem value="priority">Priority</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Sort by</label>
-              <Select
-                value={sort}
-                onValueChange={(value) => setSort(value as SortOption)}
-              >
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Sort tasks" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="dueDate">Due Date</SelectItem>
-                  <SelectItem value="priority">Priority</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+            {tasks.length > 0 ? (
+              <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                <div>
+                  <h3 className="mb-4 text-xl font-semibold">Incomplete</h3>
+                  <div className="space-y-4">
+                    {incompleteTasks.length > 0 ? (
+                      incompleteTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onToggleComplete={toggleComplete}
+                          onDelete={deleteTask}
+                          onAddSubtask={addSubtask}
+                          onToggleSubtaskComplete={toggleSubtaskComplete}
+                          onDeleteSubtask={deleteSubtask}
+                        />
+                      ))
+                    ) : (
+                      <div className="flex h-48 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
+                        <p className="text-lg font-medium text-muted-foreground">
+                          No incomplete tasks.
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Great job!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="mb-4 text-xl font-semibold">Completed</h3>
+                  <div className="space-y-4">
+                    {completedTasks.length > 0 ? (
+                      completedTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onToggleComplete={toggleComplete}
+                          onDelete={deleteTask}
+                          onAddSubtask={addSubtask}
+                          onToggleSubtaskComplete={toggleSubtaskComplete}
+                          onDeleteSubtask={deleteSubtask}
+                        />
+                      ))
+                    ) : (
+                      <div className="flex h-48 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
+                        <p className="text-lg font-medium text-muted-foreground">
+                          No completed tasks.
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Keep up the good work!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
+                <p className="text-lg font-medium text-muted-foreground">
+                  No tasks found.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Add a new task to get started!
+                </p>
+              </div>
+            )}
+          </main>
         </div>
-        {tasks.length > 0 ? (
-           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <div>
-              <h3 className="mb-4 text-xl font-semibold">Incomplete</h3>
-              <div className="space-y-4">
-                {incompleteTasks.length > 0 ? (
-                  incompleteTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      onToggleComplete={toggleComplete}
-                      onDelete={deleteTask}
-                      onAddSubtask={addSubtask}
-                      onToggleSubtaskComplete={toggleSubtaskComplete}
-                      onDeleteSubtask={deleteSubtask}
-                    />
-                  ))
-                ) : (
-                  <div className="flex h-48 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
-                    <p className="text-lg font-medium text-muted-foreground">
-                      No incomplete tasks.
-                    </p>
-                     <p className="text-sm text-muted-foreground">
-                      Great job!
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div>
-              <h3 className="mb-4 text-xl font-semibold">Completed</h3>
-              <div className="space-y-4">
-                {completedTasks.length > 0 ? (
-                  completedTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      onToggleComplete={toggleComplete}
-                      onDelete={deleteTask}
-                      onAddSubtask={addSubtask}
-                      onToggleSubtaskComplete={toggleSubtaskComplete}
-                      onDeleteSubtask={deleteSubtask}
-                    />
-                  ))
-                ) : (
-                  <div className="flex h-48 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
-                    <p className="text-lg font-medium text-muted-foreground">
-                      No completed tasks.
-                    </p>
-                     <p className="text-sm text-muted-foreground">
-                      Keep up the good work!
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
-            <p className="text-lg font-medium text-muted-foreground">
-              No tasks found.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Add a new task to get started!
-            </p>
-          </div>
-        )}
-      </main>
+      </SidebarInset>
     </div>
   );
 }
