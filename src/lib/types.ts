@@ -3,6 +3,8 @@ export type TaskPriority = "Low" | "Medium" | "High";
 export interface SubTask {
   id: string;
   title: string;
+  description?: string;
+  dueDate: Date;
   completed: boolean;
 }
 

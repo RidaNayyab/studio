@@ -21,7 +21,7 @@ import {
 import { AddTaskForm } from "@/components/add-task-form";
 import { TaskCard } from "@/components/task-card";
 import { Logo } from "@/components/icons";
-import type { Task, TaskPriority } from "@/lib/types";
+import type { Task, TaskPriority, SubTask } from "@/lib/types";
 
 type SortOption = "dueDate" | "priority";
 
@@ -35,8 +35,8 @@ const initialTasks: Task[] = [
     completed: true,
     category: "Work",
     subtasks: [
-      { id: "sub1", title: "Install Node.js", completed: true },
-      { id: "sub2", title: "Install Next.js", completed: true },
+      { id: "sub1", title: "Install Node.js", completed: true, dueDate: new Date() },
+      { id: "sub2", title: "Install Next.js", completed: true, dueDate: new Date() },
     ],
   },
   {
@@ -58,8 +58,8 @@ const initialTasks: Task[] = [
     completed: false,
     category: "Personal",
     subtasks: [
-      { id: "sub3", title: "Handle main tasks", completed: false },
-      { id: "sub4", title: "Handle sub-tasks", completed: false },
+      { id: "sub3", title: "Handle main tasks", completed: false, dueDate: new Date(new Date().setDate(new Date().getDate() + 4)), description: "State for top-level tasks" },
+      { id: "sub4", title: "Handle sub-tasks", completed: false, dueDate: new Date(new Date().setDate(new Date().getDate() + 4)) },
     ],
   },
   {
@@ -102,16 +102,17 @@ export default function Home() {
     setTasks(tasks.filter((task) => task.id !== id));
   };
   
-  const addSubtask = (taskId: string, subtaskTitle: string) => {
-    if (!subtaskTitle.trim()) return;
+  const addSubtask = (taskId: string, subtask: Omit<SubTask, "id" | "completed">) => {
     setTasks(tasks.map(task => {
       if (task.id === taskId) {
-        const newSubtask = {
+        const newSubtask: SubTask = {
+          ...subtask,
           id: crypto.randomUUID(),
-          title: subtaskTitle,
           completed: false
         };
-        return { ...task, subtasks: [...task.subtasks, newSubtask] };
+        const updatedSubtasks = [...task.subtasks, newSubtask];
+        updatedSubtasks.sort((a,b) => a.dueDate.getTime() - b.dueDate.getTime());
+        return { ...task, subtasks: updatedSubtasks };
       }
       return task;
     }));
