@@ -3,9 +3,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { Calendar, Trash2, Plus, ChevronDown, ChevronUp } from "lucide-react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 
 import {
   Card,
@@ -18,9 +15,6 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { DatePicker } from "@/components/ui/date-picker";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { Task, TaskPriority, SubTask } from "@/lib/types";
@@ -35,9 +29,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-
+import { AddSubtaskForm } from "@/components/add-subtask-form";
 
 type TaskCardProps = {
   task: Task;
@@ -54,12 +48,6 @@ const priorityVariant: Record<TaskPriority, "default" | "secondary" | "destructi
   High: "destructive",
 };
 
-const subtaskFormSchema = z.object({
-  title: z.string().min(2, { message: "Title must be at least 2 characters." }),
-  description: z.string().optional(),
-  dueDate: z.date({ required_error: "A due date is required." }),
-});
-
 export function TaskCard({ 
   task, 
   onToggleComplete, 
@@ -69,20 +57,7 @@ export function TaskCard({
   onDeleteSubtask,
 }: TaskCardProps) {
   const [isSubtasksOpen, setSubtasksOpen] = useState(false);
-  
-  const form = useForm<z.infer<typeof subtaskFormSchema>>({
-    resolver: zodResolver(subtaskFormSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      dueDate: undefined,
-    },
-  });
-
-  const handleAddSubtask = (values: z.infer<typeof subtaskFormSchema>) => {
-    onAddSubtask(task.id, values);
-    form.reset();
-  }
+  const [isAddSubtaskOpen, setAddSubtaskOpen] = useState(false);
   
   const subtasksCompleted = task.subtasks.filter(st => st.completed).length;
   const subtasksTotal = task.subtasks.length;
@@ -182,53 +157,23 @@ export function TaskCard({
         </Collapsible>
         
         {!task.completed && (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleAddSubtask)} className="space-y-3 rounded-md border p-4">
-               <h4 className="text-sm font-medium">Add a new sub-task</h4>
-               <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="sr-only">Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Sub-task title" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="sr-only">Description</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Sub-task description (optional)" {...field} className="text-xs"/>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="dueDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel className="sr-only">Due Date</FormLabel>
-                    <FormControl>
-                      <DatePicker date={field.value} setDate={field.onChange} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" size="sm" className="w-full">
+          <Dialog open={isAddSubtaskOpen} onOpenChange={setAddSubtaskOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full">
                 <Plus className="h-4 w-4 mr-1"/> Add Sub-task
               </Button>
-            </form>
-          </Form>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Sub-task to "{task.title}"</DialogTitle>
+              </DialogHeader>
+              <AddSubtaskForm 
+                taskId={task.id}
+                onAddSubtask={onAddSubtask}
+                setOpen={setAddSubtaskOpen}
+              />
+            </DialogContent>
+          </Dialog>
         )}
 
       </CardContent>
