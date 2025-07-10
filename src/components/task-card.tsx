@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -41,7 +42,7 @@ type TaskCardProps = {
   onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
   onDeleteSubtask: (taskId: string, subtaskId: string) => void;
   isDragging?: boolean;
-  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
+  dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
 };
 
 const priorityVariant: Record<TaskPriority, "default" | "secondary" | "destructive"> = {
@@ -70,19 +71,43 @@ export function TaskCard({
   return (
     <Card
       className={cn(
-        "flex flex-col transition-colors w-full",
+        "flex flex-col transition-colors w-full cursor-grab",
         isCompleted && "bg-accent/30",
-        isDragging && "shadow-2xl opacity-80"
+        isDragging && "shadow-2xl opacity-80 cursor-grabbing"
       )}
+      {...dragHandleProps}
     >
       <CardHeader className="relative">
-        {dragHandleProps && (
-            <div className="absolute top-3 right-3">
-              <Button variant="ghost" size="icon" className="h-8 w-8 cursor-grab" {...dragHandleProps}>
-                <GripVertical className="h-5 w-5 text-muted-foreground" />
-              </Button>
-            </div>
-        )}
+        <div className="absolute top-3 right-3">
+            <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                aria-label={`Delete task "${task.title}"`}
+                onClick={(e) => e.stopPropagation()}
+                >
+                <Trash2 className="h-4 w-4" />
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete your
+                    task and all of its sub-tasks.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onDelete(task.id)}>
+                    Delete
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+            </AlertDialog>
+        </div>
         <div className="flex items-start gap-4">
           <Checkbox
             checked={isCompleted}
@@ -91,6 +116,7 @@ export function TaskCard({
               isCompleted ? "incomplete" : "complete"
             }`}
             className="mt-1 h-5 w-5 shrink-0"
+            onClick={(e) => e.stopPropagation()}
           />
           <div className="flex-grow">
             <CardTitle
@@ -113,7 +139,7 @@ export function TaskCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow space-y-4">
+      <CardContent className="flex-grow space-y-4" onClick={(e) => e.stopPropagation()}>
         {task.description && (
           <p
             className={cn(
@@ -192,37 +218,10 @@ export function TaskCard({
         )}
 
       </CardContent>
-      <CardFooter className="flex items-center justify-between">
+      <CardFooter className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2">
           <Badge variant={priorityVariant[task.priority]}>{task.priority}</Badge>
         </div>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-              aria-label={`Delete task "${task.title}"`}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete your
-                task and all of its sub-tasks.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => onDelete(task.id)}>
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </CardFooter>
     </Card>
   );
