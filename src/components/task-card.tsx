@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Calendar, Trash2, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { Calendar, Trash2, Plus, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 
 import {
   Card,
@@ -40,6 +40,8 @@ type TaskCardProps = {
   onAddSubtask: (taskId: string, subtask: Omit<SubTask, "id" | "completed">) => void;
   onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
   onDeleteSubtask: (taskId: string, subtaskId: string) => void;
+  isDragging?: boolean;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
 };
 
 const priorityVariant: Record<TaskPriority, "default" | "secondary" | "destructive"> = {
@@ -55,9 +57,12 @@ export function TaskCard({
   onAddSubtask,
   onToggleSubtaskComplete,
   onDeleteSubtask,
+  isDragging,
+  dragHandleProps,
 }: TaskCardProps) {
   const [isSubtasksOpen, setSubtasksOpen] = useState(false);
   const [isAddSubtaskOpen, setAddSubtaskOpen] = useState(false);
+  const isCompleted = task.status === "completed";
   
   const subtasksCompleted = task.subtasks.filter(st => st.completed).length;
   const subtasksTotal = task.subtasks.length;
@@ -66,32 +71,40 @@ export function TaskCard({
     <Card
       className={cn(
         "flex flex-col transition-colors",
-        task.completed && "bg-accent/30"
+        isCompleted && "bg-accent/30",
+        isDragging && "shadow-2xl opacity-80"
       )}
     >
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
-          <CardTitle
-            className={cn(
-              "font-semibold transition-all",
-              task.completed && "text-muted-foreground line-through"
+          <div className="flex items-start gap-2">
+            {dragHandleProps && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 cursor-grab" {...dragHandleProps}>
+                <GripVertical className="h-5 w-5 text-muted-foreground" />
+              </Button>
             )}
-          >
-            {task.title}
-          </CardTitle>
+            <CardTitle
+              className={cn(
+                "font-semibold transition-all pt-1",
+                isCompleted && "text-muted-foreground line-through"
+              )}
+            >
+              {task.title}
+            </CardTitle>
+          </div>
           <Checkbox
-            checked={task.completed}
+            checked={isCompleted}
             onCheckedChange={() => onToggleComplete(task.id)}
             aria-label={`Mark "${task.title}" as ${
-              task.completed ? "incomplete" : "complete"
+              isCompleted ? "incomplete" : "complete"
             }`}
             className="mt-1 h-5 w-5 shrink-0"
           />
         </div>
         <CardDescription
           className={cn(
-            "flex items-center gap-2 pt-2 text-sm",
-            task.completed && "text-muted-foreground/80"
+            "flex items-center gap-2 pt-2 text-sm pl-10",
+            isCompleted && "text-muted-foreground/80"
           )}
         >
           <Calendar className="h-4 w-4" />
@@ -103,14 +116,14 @@ export function TaskCard({
           <p
             className={cn(
               "text-sm text-muted-foreground",
-              task.completed && "line-through"
+              isCompleted && "line-through"
             )}
           >
             {task.description}
           </p>
         )}
         
-        {(subtasksTotal > 0 || !task.completed) && <Separator />}
+        {(subtasksTotal > 0 || !isCompleted) && <Separator />}
 
         <Collapsible open={isSubtasksOpen} onOpenChange={setSubtasksOpen} className="space-y-4">
           {subtasksTotal > 0 && (
@@ -156,7 +169,7 @@ export function TaskCard({
           </CollapsibleContent>
         </Collapsible>
         
-        {!task.completed && (
+        {!isCompleted && (
           <Dialog open={isAddSubtaskOpen} onOpenChange={setAddSubtaskOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="w-full">

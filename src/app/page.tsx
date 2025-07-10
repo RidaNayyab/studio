@@ -1,7 +1,27 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
 import { Plus, LayoutGrid, ListTodo } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  KeyboardSensor,
+  DragEndEvent,
+  DragOverEvent,
+  DragOverlay,
+  DropAnimation,
+  defaultDropAnimation,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,10 +39,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AddTaskForm } from "@/components/add-task-form";
+import { SortableTaskCard } from "@/components/sortable-task-card";
 import { TaskCard } from "@/components/task-card";
 import { Logo } from "@/components/icons";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import type { Task, TaskPriority, SubTask } from "@/lib/types";
+import type { Task, TaskPriority, SubTask, TaskStatus } from "@/lib/types";
 
 type SortOption = "dueDate" | "priority";
 
@@ -33,7 +54,7 @@ const initialTasks: Task[] = [
     description: "Install Node.js, Next.js, and Tailwind CSS.",
     dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
     priority: "High",
-    completed: true,
+    status: "completed",
     category: "Work",
     subtasks: [
       { id: "sub1", title: "Install Node.js", completed: true, dueDate: new Date() },
@@ -46,7 +67,7 @@ const initialTasks: Task[] = [
     description: "Build TaskCard and AddTaskForm components.",
     dueDate: new Date(new Date().setDate(new Date().getDate() + 3)),
     priority: "Medium",
-    completed: false,
+    status: "incomplete",
     category: "Work",
     subtasks: [],
   },
@@ -56,7 +77,7 @@ const initialTasks: Task[] = [
     description: "Use useState for managing tasks, filters, and sorting.",
     dueDate: new Date(new Date().setDate(new Date().getDate() + 5)),
     priority: "High",
-    completed: false,
+    status: "incomplete",
     category: "Personal",
     subtasks: [
       { id: "sub3", title: "Handle main tasks", completed: false, dueDate: new Date(new Date().setDate(new Date().getDate() + 4)), description: "State for top-level tasks" },
@@ -69,7 +90,7 @@ const initialTasks: Task[] = [
     description: "Use Firebase App Hosting to deploy the application.",
     dueDate: new Date(new Date().setDate(new Date().getDate() + 7)),
     priority: "Low",
-    completed: false,
+    status: "incomplete",
     category: "Work",
     subtasks: [],
   },
@@ -80,22 +101,34 @@ export default function Home() {
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [sort, setSort] = useState<SortOption>("dueDate");
   const [activeBoard, setActiveBoard] = useState<string>("All Tasks");
+  const [activeDragTask, setActiveDragTask] = useState<Task | null>(null);
 
-  const addTask = (task: Omit<Task, "id" | "completed" | "subtasks">) => {
+  const addTask = (task: Omit<Task, "id" | "status" | "subtasks">) => {
     const newTask: Task = {
       ...task,
       id: crypto.randomUUID(),
-      completed: false,
+      status: "incomplete",
       subtasks: [],
     };
     setTasks((prev) => [...prev, newTask]);
   };
 
+  const setTaskStatus = (id: string, status: TaskStatus) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === id ? { ...task, status } : task
+      )
+    );
+  };
+  
   const toggleComplete = (id: string) => {
     setTasks(
-      tasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
+      tasks.map((task) => {
+        if (task.id === id) {
+          return { ...task, status: task.status === "completed" ? "incomplete" : "completed" };
+        }
+        return task;
+      })
     );
   };
 
@@ -167,13 +200,99 @@ export default function Home() {
   }, [tasks, sort, activeBoard]);
   
   const incompleteTasks = useMemo(() => {
-    return baseFilteredAndSortedTasks.filter((task) => !task.completed);
+    return baseFilteredAndSortedTasks.filter((task) => task.status === 'incomplete');
   }, [baseFilteredAndSortedTasks]);
 
   const completedTasks = useMemo(() => {
-    return baseFilteredAndSortedTasks.filter((task) => task.completed);
+    return baseFilteredAndSortedTasks.filter((task) => task.status === 'completed');
   }, [baseFilteredAndSortedTasks]);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const findTaskById = (id: string) => tasks.find((task) => task.id === id);
+
+  const handleDragStart = (event: DragEndEvent) => {
+    const { active } = event;
+    const task = findTaskById(active.id as string);
+    if (task) {
+      setActiveDragTask(task);
+    }
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+  
+    const activeId = active.id as string;
+    const overId = over.id as string;
+  
+    const activeTask = findTaskById(activeId);
+    if (!activeTask) return;
+  
+    // Handle dropping into a different column
+    if (over.data.current?.sortable?.containerId) {
+      const overContainer = over.data.current.sortable.containerId;
+      const newStatus = overContainer as TaskStatus;
+      
+      if (activeTask.status !== newStatus) {
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === activeId ? { ...task, status: newStatus } : task
+          )
+        );
+      }
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragTask(null);
+
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const activeTask = findTaskById(activeId);
+    const overTask = findTaskById(overId);
+
+    if (!activeTask) return;
+
+    const activeContainer = active.data.current?.sortable.containerId;
+    const overContainer = over.data.current?.sortable.containerId || overTask?.status;
+
+    if (!activeContainer || !overContainer) return;
+    
+    if (activeContainer === overContainer) {
+      // Reordering within the same column
+      const taskList = activeContainer === 'completed' ? completedTasks : incompleteTasks;
+      const oldIndex = taskList.findIndex(t => t.id === activeId);
+      const newIndex = taskList.findIndex(t => t.id === overId);
+      
+      if (oldIndex !== newIndex) {
+         const newSortedList = arrayMove(taskList, oldIndex, newIndex);
+         const otherList = activeContainer === 'completed' ? incompleteTasks : completedTasks;
+         setTasks([...newSortedList, ...otherList]);
+      }
+    } else {
+        // Moving to a different column
+        setTaskStatus(activeId, overContainer as TaskStatus);
+    }
+  };
+  
+  const dropAnimation: DropAnimation = {
+    ...defaultDropAnimation,
+  };
+  
+  const taskIds = useMemo(() => ({
+    incomplete: incompleteTasks.map(t => t.id),
+    completed: completedTasks.map(t => t.id),
+  }), [incompleteTasks, completedTasks]);
 
   return (
     <div className="flex">
@@ -235,7 +354,7 @@ export default function Home() {
               </div>
             </div>
           </header>
-
+          
           <main className="container mx-auto px-4 py-8">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
               <div className="flex flex-wrap items-center gap-4">
@@ -256,73 +375,97 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            {tasks.length > 0 ? (
-              <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                <div>
-                  <h3 className="mb-4 text-xl font-semibold">Incomplete</h3>
-                  <div className="space-y-4">
-                    {incompleteTasks.length > 0 ? (
-                      incompleteTasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          onToggleComplete={toggleComplete}
-                          onDelete={deleteTask}
-                          onAddSubtask={addSubtask}
-                          onToggleSubtaskComplete={toggleSubtaskComplete}
-                          onDeleteSubtask={deleteSubtask}
-                        />
-                      ))
-                    ) : (
-                      <div className="flex h-48 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
-                        <p className="text-lg font-medium text-muted-foreground">
-                          No incomplete tasks.
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Great job!
-                        </p>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+            >
+              {tasks.length > 0 ? (
+                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                  <SortableContext items={taskIds.incomplete} strategy={verticalListSortingStrategy} id="incomplete">
+                    <div>
+                      <h3 className="mb-4 text-xl font-semibold">Incomplete</h3>
+                      <div className="space-y-4 rounded-lg border-2 border-dashed bg-card p-4 min-h-[24rem]">
+                        {incompleteTasks.length > 0 ? (
+                          incompleteTasks.map((task) => (
+                            <SortableTaskCard
+                              key={task.id}
+                              task={task}
+                              onToggleComplete={toggleComplete}
+                              onDelete={deleteTask}
+                              onAddSubtask={addSubtask}
+                              onToggleSubtaskComplete={toggleSubtaskComplete}
+                              onDeleteSubtask={deleteSubtask}
+                            />
+                          ))
+                        ) : (
+                          <div className="flex h-full flex-col items-center justify-center">
+                            <p className="text-lg font-medium text-muted-foreground">
+                              No incomplete tasks.
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Great job!
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="mb-4 text-xl font-semibold">Completed</h3>
-                  <div className="space-y-4">
-                    {completedTasks.length > 0 ? (
-                      completedTasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          onToggleComplete={toggleComplete}
-                          onDelete={deleteTask}
-                          onAddSubtask={addSubtask}
-                          onToggleSubtaskComplete={toggleSubtaskComplete}
-                          onDeleteSubtask={deleteSubtask}
-                        />
-                      ))
-                    ) : (
-                      <div className="flex h-48 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
-                        <p className="text-lg font-medium text-muted-foreground">
-                          No completed tasks.
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Keep up the good work!
-                        </p>
+                    </div>
+                  </SortableContext>
+                  <SortableContext items={taskIds.completed} strategy={verticalListSortingStrategy} id="completed">
+                    <div>
+                      <h3 className="mb-4 text-xl font-semibold">Completed</h3>
+                      <div className="space-y-4 rounded-lg border-2 border-dashed bg-card p-4 min-h-[24rem]">
+                        {completedTasks.length > 0 ? (
+                          completedTasks.map((task) => (
+                            <SortableTaskCard
+                              key={task.id}
+                              task={task}
+                              onToggleComplete={toggleComplete}
+                              onDelete={deleteTask}
+                              onAddSubtask={addSubtask}
+                              onToggleSubtaskComplete={toggleSubtaskComplete}
+                              onDeleteSubtask={deleteSubtask}
+                            />
+                          ))
+                        ) : (
+                          <div className="flex h-full flex-col items-center justify-center">
+                            <p className="text-lg font-medium text-muted-foreground">
+                              No completed tasks.
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Keep up the good work!
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  </SortableContext>
                 </div>
-              </div>
-            ) : (
-              <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
-                <p className="text-lg font-medium text-muted-foreground">
-                  No tasks found.
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Add a new task to get started!
-                </p>
-              </div>
-            )}
+              ) : (
+                <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
+                  <p className="text-lg font-medium text-muted-foreground">
+                    No tasks found.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Add a new task to get started!
+                  </p>
+                </div>
+              )}
+               <DragOverlay dropAnimation={dropAnimation}>
+                {activeDragTask ? (
+                  <TaskCard
+                    task={activeDragTask}
+                    onToggleComplete={() => {}}
+                    onDelete={() => {}}
+                    onAddSubtask={() => {}}
+                    onToggleSubtaskComplete={() => {}}
+                    onDeleteSubtask={() => {}}
+                  />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           </main>
         </div>
       </SidebarInset>
