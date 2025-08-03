@@ -21,6 +21,13 @@ type SortableColumnProps = {
   isOverlay?: boolean;
 };
 
+const columnColorMap: Record<string, string> = {
+    'backlog': 'border-t-gray-400',
+    'todo': 'border-t-blue-500',
+    'in-progress': 'border-t-yellow-500',
+    'done': 'border-t-green-500',
+}
+
 export function SortableColumn({
   column,
   tasks,
@@ -54,14 +61,14 @@ export function SortableColumn({
   };
 
   const containerClasses = cn(
-    "w-72 flex-shrink-0 flex flex-col",
-    isOverlay && "rounded-xl shadow-lg border bg-card",
+    "w-72 flex-shrink-0 flex flex-col rounded-lg bg-card shadow-sm",
+    isOverlay && "ring-2 ring-primary",
+    columnColorMap[column.id] ? `${columnColorMap[column.id]} border-t-4` : 'border-t-4 border-t-muted-foreground'
   )
 
   const headerClasses = cn(
     "flex items-center justify-between p-4 rounded-t-lg",
     isDragging ? "cursor-grabbing" : "cursor-grab",
-    isOverlay && "rounded-t-xl"
   );
   
   if (isDragging) {
@@ -82,7 +89,7 @@ export function SortableColumn({
             <Trash2 className="h-4 w-4 text-muted-foreground"/>
         </Button>
       </div>
-      <div className="space-y-4 rounded-b-lg border-x-2 border-b-2 border-dashed bg-card/50 p-4 flex-grow min-h-[24rem]">
+      <div className="space-y-4 bg-card/50 p-4 flex-grow min-h-[24rem]">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
             {tasks.length > 0 ? (
                 tasks.map((task) => (
@@ -96,7 +103,7 @@ export function SortableColumn({
                 />
                 ))
             ) : (
-                <div className="flex h-full flex-col items-center justify-center text-center">
+                <div className="flex h-full flex-col items-center justify-center rounded-md border-2 border-dashed border-muted-foreground/20 text-center">
                     <p className="text-lg font-medium text-muted-foreground">
                         No tasks yet.
                     </p>

@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Calendar, Trash2, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { Calendar, Trash2, Plus, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 
 import {
   Card,
@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { Task, SubTask, Priority } from "@/lib/types";
+import type { Task, SubTask, Priority, Category } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +49,14 @@ const priorityStyles: Record<Priority, string> = {
     Low: 'bg-green-500 hover:bg-green-500/80',
 }
 
+const categoryStyles: Record<Category, string> = {
+    Work: 'bg-blue-500 hover:bg-blue-500/80',
+    Personal: 'bg-purple-500 hover:bg-purple-500/80',
+    Home: 'bg-orange-500 hover:bg-orange-500/80',
+    Other: 'bg-gray-500 hover:bg-gray-500/80'
+}
+
+
 export function TaskCard({ 
   task, 
   onDelete,
@@ -62,11 +70,15 @@ export function TaskCard({
   
   const subtasksCompleted = task.subtasks.filter(st => st.completed).length;
   const subtasksTotal = task.subtasks.length;
+  const allSubtasksComplete = subtasksTotal > 0 && subtasksCompleted === subtasksTotal;
+  
+  const isDone = task.columnId === 'done';
 
   return (
     <Card
       className={cn(
         "flex flex-col transition-colors w-full",
+        isDone && "bg-card/60 grayscale-[50%]"
       )}
     >
       <div
@@ -109,6 +121,7 @@ export function TaskCard({
               <CardTitle
                 className={cn(
                   "font-semibold transition-all text-lg pr-8",
+                  isDone && "line-through text-muted-foreground"
                 )}
               >
                 {task.title}
@@ -127,7 +140,7 @@ export function TaskCard({
         <CardContent className="flex-grow space-y-4" onClick={(e) => e.stopPropagation()}>
            <div className="flex items-center gap-2">
             <Badge className={cn("text-primary-foreground", priorityStyles[task.priority])}>{task.priority}</Badge>
-            <Badge variant="secondary">{task.category}</Badge>
+            <Badge className={cn("text-primary-foreground", categoryStyles[task.category])}>{task.category}</Badge>
            </div>
           {task.description && (
             <p
@@ -147,7 +160,8 @@ export function TaskCard({
           {subtasksTotal > 0 && (
             <CollapsibleTrigger asChild>
               <Button variant="ghost" className="flex w-full justify-between px-0 hover:bg-transparent">
-                <span className="text-sm font-medium">
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  {allSubtasksComplete && <CheckCircle2 className="h-4 w-4 text-green-500" />}
                   {subtasksCompleted} / {subtasksTotal} Sub-tasks
                 </span>
                 {isSubtasksOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -162,6 +176,7 @@ export function TaskCard({
                   checked={subtask.completed} 
                   onCheckedChange={() => onToggleSubtaskComplete(task.id, subtask.id)}
                   className="mt-1"
+                  disabled={isDone}
                 />
                 <div className="flex-grow space-y-1">
                   <label 
@@ -179,7 +194,7 @@ export function TaskCard({
                     <span>{format(subtask.dueDate, "MMM d")}</span>
                   </p>
                 </div>
-                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => onDeleteSubtask(task.id, subtask.id)}>
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => onDeleteSubtask(task.id, subtask.id)} disabled={isDone}>
                   <Trash2 className="h-3 w-3 text-muted-foreground" />
                 </Button>
               </div>
@@ -189,7 +204,7 @@ export function TaskCard({
         
         <Dialog open={isAddSubtaskOpen} onOpenChange={setAddSubtaskOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="w-full">
+            <Button variant="outline" size="sm" className="w-full" disabled={isDone}>
               <Plus className="h-4 w-4 mr-1"/> Add Sub-task
             </Button>
           </DialogTrigger>
