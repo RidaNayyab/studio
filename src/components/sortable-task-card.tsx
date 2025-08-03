@@ -38,6 +38,7 @@ export function SortableTaskCard(props: SortableTaskCardProps) {
   };
   
   const classes = cn(
+    "cursor-grab",
     isDragging && "opacity-50"
   );
 

@@ -240,7 +240,17 @@ export default function Home() {
       const activeTask = findTaskById(activeId as string);
       const overTask = findTaskById(overId as string);
       if (activeTask && overTask && activeTask.columnId !== overTask.columnId) {
-        setTasks(prev => prev.map(t => t.id === activeTask.id ? {...t, columnId: overTask.columnId} : t));
+        setTasks(prev => {
+           const activeIndex = prev.findIndex(t => t.id === activeId);
+           const overIndex = prev.findIndex(t => t.id === overId);
+           const newTasks = arrayMove(prev, activeIndex, overIndex);
+           return newTasks.map((t, index) => {
+             if (index === overIndex) {
+               return {...t, columnId: overTask.columnId};
+             }
+             return t;
+           });
+        });
       }
     }
     
@@ -277,7 +287,7 @@ export default function Home() {
     if (isActiveATask) {
       const activeIndex = tasks.findIndex(t => t.id === activeId);
       const overTask = tasks.find(t => t.id === overId);
-      const overIndex = overTask ? tasks.indexOf(overTask) : -1;
+      const overIndex = overTask ? tasks.indexOf(overTask) : tasks.length -1;
       
       if (activeIndex !== -1 && overIndex !== -1) {
         setTasks(prev => arrayMove(prev, activeIndex, overIndex));
@@ -295,7 +305,7 @@ export default function Home() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <Logo className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold text-primary">TaskFlow</h1>
+            <h1 className="text-xl font-bold text-primary">SmartTodoo</h1>
           </div>
           <div className="flex items-center gap-4">
             <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>

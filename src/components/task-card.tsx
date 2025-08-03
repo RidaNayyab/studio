@@ -41,7 +41,6 @@ type TaskCardProps = {
   onAddSubtask: (taskId: string, subtask: Omit<SubTask, "id" | "completed">) => void;
   onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
   onDeleteSubtask: (taskId: string, subtaskId: string) => void;
-  isDragging?: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
 };
 
@@ -58,7 +57,6 @@ export function TaskCard({
   onAddSubtask,
   onToggleSubtaskComplete,
   onDeleteSubtask,
-  isDragging,
   dragHandleProps,
 }: TaskCardProps) {
   const [isSubtasksOpen, setSubtasksOpen] = useState(false);
@@ -71,86 +69,90 @@ export function TaskCard({
   return (
     <Card
       className={cn(
-        "flex flex-col transition-colors w-full cursor-grab",
+        "flex flex-col transition-colors w-full",
         isCompleted && "bg-accent/30",
-        isDragging && "shadow-2xl opacity-80 cursor-grabbing"
       )}
-      {...dragHandleProps}
     >
-      <CardHeader className="relative">
-        <div className="absolute top-3 right-3">
-            <AlertDialog>
-            <AlertDialogTrigger asChild>
-                <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                aria-label={`Delete task "${task.title}"`}
-                onClick={(e) => e.stopPropagation()}
-                >
-                <Trash2 className="h-4 w-4" />
-                </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete your
-                    task and all of its sub-tasks.
-                </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => onDelete(task.id)}>
-                    Delete
-                </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-            </AlertDialog>
-        </div>
-        <div className="flex items-start gap-4">
-          <Checkbox
-            checked={isCompleted}
-            onCheckedChange={() => onToggleComplete(task.id)}
-            aria-label={`Mark "${task.title}" as ${
-              isCompleted ? "incomplete" : "complete"
-            }`}
-            className="mt-1 h-5 w-5 shrink-0"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <div className="flex-grow">
-            <CardTitle
-              className={cn(
-                "font-semibold transition-all text-lg pr-8",
-                isCompleted && "text-muted-foreground line-through"
-              )}
-            >
-              {task.title}
-            </CardTitle>
-            <CardDescription
-              className={cn(
-                "flex items-center gap-2 pt-2 text-sm",
-                isCompleted && "text-muted-foreground/80"
-              )}
-            >
-              <Calendar className="h-4 w-4" />
-              <span>Due by {format(task.dueDate, "PPP")}</span>
-            </CardDescription>
+      <div
+        className="flex-grow cursor-grab"
+        {...dragHandleProps}
+      >
+        <CardHeader className="relative">
+          <div className="absolute top-3 right-3">
+              <AlertDialog>
+              <AlertDialogTrigger asChild>
+                  <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  aria-label={`Delete task "${task.title}"`}
+                  onClick={(e) => e.stopPropagation()}
+                  >
+                  <Trash2 className="h-4 w-4" />
+                  </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                  <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete your
+                      task and all of its sub-tasks.
+                  </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDelete(task.id)}>
+                      Delete
+                  </AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+              </AlertDialog>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-grow space-y-4" onClick={(e) => e.stopPropagation()}>
-        {task.description && (
-          <p
-            className={cn(
-              "text-sm text-muted-foreground",
-              isCompleted && "line-through"
-            )}
-          >
-            {task.description}
-          </p>
-        )}
-        
+          <div className="flex items-start gap-4">
+            <Checkbox
+              checked={isCompleted}
+              onCheckedChange={() => onToggleComplete(task.id)}
+              aria-label={`Mark "${task.title}" as ${
+                isCompleted ? "incomplete" : "complete"
+              }`}
+              className="mt-1 h-5 w-5 shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div className="flex-grow">
+              <CardTitle
+                className={cn(
+                  "font-semibold transition-all text-lg pr-8",
+                  isCompleted && "text-muted-foreground line-through"
+                )}
+              >
+                {task.title}
+              </CardTitle>
+              <CardDescription
+                className={cn(
+                  "flex items-center gap-2 pt-2 text-sm",
+                  isCompleted && "text-muted-foreground/80"
+                )}
+              >
+                <Calendar className="h-4 w-4" />
+                <span>Due by {format(task.dueDate, "PPP")}</span>
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-grow space-y-4" onClick={(e) => e.stopPropagation()}>
+          {task.description && (
+            <p
+              className={cn(
+                "text-sm text-muted-foreground",
+                isCompleted && "line-through"
+              )}
+            >
+              {task.description}
+            </p>
+          )}
+        </CardContent>
+      </div>
+      <div onClick={(e) => e.stopPropagation()} className="px-6 space-y-4">
         {(subtasksTotal > 0 || !isCompleted) && <Separator />}
 
         <Collapsible open={isSubtasksOpen} onOpenChange={setSubtasksOpen} className="space-y-4">
@@ -216,9 +218,9 @@ export function TaskCard({
             </DialogContent>
           </Dialog>
         )}
+      </div>
 
-      </CardContent>
-      <CardFooter className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+      <CardFooter className="flex items-center justify-between mt-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2">
           <Badge variant={priorityVariant[task.priority]}>{task.priority}</Badge>
         </div>
