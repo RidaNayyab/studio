@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -31,13 +31,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AddTaskForm } from "@/components/add-task-form";
 import { SortableTaskCard } from "@/components/sortable-task-card";
 import { TaskCard } from "@/components/task-card";
 import { Logo } from "@/components/icons";
 import { Input } from "@/components/ui/input";
 import { SortableColumn } from "@/components/sortable-column";
-import type { Task, SubTask, Column } from "@/lib/types";
+import type { Task, SubTask, Column, Category, Priority } from "@/lib/types";
 
 const initialTasks: Task[] = [
   {
@@ -112,6 +119,23 @@ export default function Home() {
   const [activeDragTask, setActiveDragTask] = useState<Task | null>(null);
   const [activeDragColumn, setActiveDragColumn] = useState<Column | null>(null);
   const [newColumnName, setNewColumnName] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCategory, setFilterCategory] = useState<Category | "all">("all");
+  const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+        const matchesSearch = searchTerm.trim() === "" ||
+            task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
+
+        const matchesCategory = filterCategory === 'all' || task.category === filterCategory;
+        const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
+
+        return matchesSearch && matchesCategory && matchesPriority;
+    });
+  }, [tasks, searchTerm, filterCategory, filterPriority]);
+
 
   const addTask = (task: Omit<Task, "id" | "subtasks" | "columnId">) => {
     const firstColumnId = columns.length > 0 ? columns[0].id : 'backlog';
@@ -232,23 +256,24 @@ export default function Home() {
 
     // Dropping a Task over another Task
     if (isActiveATask && isOverATask) {
-      const activeTask = findTaskById(activeId as string);
-      const overTask = findTaskById(overId as string);
-      if (activeTask && overTask && activeTask.columnId !== overTask.columnId) {
-        const activeIndex = tasks.findIndex(t => t.id === activeId);
-        tasks[activeIndex].columnId = overTask.columnId;
-        setTasks(arrayMove(tasks, activeIndex, tasks.findIndex(t => t.id === overId)));
-      }
+      setTasks(currentTasks => {
+        const activeIndex = currentTasks.findIndex(t => t.id === activeId);
+        const overIndex = currentTasks.findIndex(t => t.id === overId);
+        if (currentTasks[activeIndex].columnId !== currentTasks[overIndex].columnId) {
+          currentTasks[activeIndex].columnId = currentTasks[overIndex].columnId;
+          return arrayMove(currentTasks, activeIndex, overIndex);
+        }
+        return arrayMove(currentTasks, activeIndex, overIndex);
+      });
     }
     
     // Dropping a Task over a Column
     if (isActiveATask && isOverAColumn) {
-        const activeTask = findTaskById(activeId as string);
-        if (activeTask) {
-            const activeIndex = tasks.findIndex(t => t.id === activeId);
-            tasks[activeIndex].columnId = overId as string;
-            setTasks([...tasks]);
-        }
+        setTasks(currentTasks => {
+          const activeIndex = currentTasks.findIndex(t => t.id === activeId);
+          currentTasks[activeIndex].columnId = overId as string;
+          return arrayMove(currentTasks, activeIndex, activeIndex);
+        })
     }
   };
 
@@ -276,14 +301,11 @@ export default function Home() {
     
     const isActiveATask = active.data.current?.type === "Task";
     if (isActiveATask) {
-        const activeIndex = tasks.findIndex(t => t.id === activeId);
-        const overIndex = tasks.findIndex(t => t.id === overId);
-        
-        if (tasks[activeIndex].columnId !== tasks[overIndex].columnId) {
-            tasks[activeIndex].columnId = tasks[overIndex].columnId;
-        }
-
-        setTasks(prev => arrayMove(prev, activeIndex, overIndex));
+        setTasks(currentTasks => {
+            const activeIndex = currentTasks.findIndex(t => t.id === activeId);
+            const overIndex = currentTasks.findIndex(t => t.id === overId);
+            return arrayMove(currentTasks, activeIndex, overIndex);
+        });
     }
   };
   
@@ -294,10 +316,44 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+        <div className="container mx-auto flex h-20 items-center justify-between px-4 flex-wrap gap-4">
           <div className="flex items-center gap-2">
             <Logo className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold text-primary">SmartTodoo</h1>
+          </div>
+          <div className="flex items-center gap-2 flex-grow sm:flex-grow-0">
+            <div className="relative w-full max-w-sm">
+                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Search tasks..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                />
+            </div>
+            <Select value={filterCategory} onValueChange={(value) => setFilterCategory(value as Category | "all")}>
+                <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="Work">Work</SelectItem>
+                    <SelectItem value="Personal">Personal</SelectItem>
+                    <SelectItem value="Home">Home</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+            </Select>
+            <Select value={filterPriority} onValueChange={(value) => setFilterPriority(value as Priority | "all")}>
+                <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center gap-4">
             <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
@@ -335,7 +391,7 @@ export default function Home() {
                 <SortableColumn 
                     key={column.id}
                     column={column}
-                    tasks={tasks.filter(t => t.columnId === column.id)}
+                    tasks={filteredTasks.filter(t => t.columnId === column.id)}
                     deleteColumn={deleteColumn}
                     onDeleteTask={deleteTask}
                     onAddSubtask={addSubtask}
@@ -371,7 +427,7 @@ export default function Home() {
             {activeDragColumn ? (
                  <SortableColumn 
                     column={activeDragColumn}
-                    tasks={tasks.filter(t => t.columnId === activeDragColumn.id)}
+                    tasks={filteredTasks.filter(t => t.columnId === activeDragColumn.id)}
                     deleteColumn={deleteColumn}
                     onDeleteTask={deleteTask}
                     onAddSubtask={addSubtask}
