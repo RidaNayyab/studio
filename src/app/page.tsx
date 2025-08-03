@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, Search, ArrowUpDown } from "lucide-react";
 import {
   DndContext,
@@ -124,8 +124,8 @@ const priorityOrder: Record<Priority, number> = {
 };
 
 export default function Home() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [columns, setColumns] = useState<Column[]>(initialColumns);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [columns, setColumns] = useState<Column[]>([]);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [activeDragTask, setActiveDragTask] = useState<Task | null>(null);
   const [activeDragColumn, setActiveDragColumn] = useState<Column | null>(null);
@@ -134,6 +134,53 @@ export default function Home() {
   const [filterCategory, setFilterCategory] = useState<Category | "all">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
   const [sortBy, setSortBy] = useState<'manual' | 'priority'>('manual');
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isMounted) return;
+    try {
+        const savedTasks = localStorage.getItem('smarttodoo-tasks');
+        const savedColumns = localStorage.getItem('smarttodoo-columns');
+
+        if (savedTasks) {
+            const parsedTasks: Task[] = JSON.parse(savedTasks).map((task: Task) => ({
+                ...task,
+                dueDate: new Date(task.dueDate),
+                subtasks: task.subtasks.map((st: SubTask) => ({...st, dueDate: new Date(st.dueDate)}))
+            }));
+            setTasks(parsedTasks);
+        } else {
+            setTasks(initialTasks);
+        }
+        
+        if (savedColumns) {
+            setColumns(JSON.parse(savedColumns));
+        } else {
+            setColumns(initialColumns);
+        }
+    } catch (error) {
+        console.error("Failed to load from local storage:", error);
+        setTasks(initialTasks);
+        setColumns(initialColumns);
+    }
+  }, [isMounted]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isMounted) {
+      localStorage.setItem('smarttodoo-tasks', JSON.stringify(tasks));
+    }
+  }, [tasks, isMounted]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isMounted) {
+        localStorage.setItem('smarttodoo-columns', JSON.stringify(columns));
+    }
+  }, [columns, isMounted]);
+  
 
   const filteredAndSortedTasks = useMemo(() => {
     // Filtering
@@ -152,7 +199,6 @@ export default function Home() {
     if (sortBy === 'priority') {
         filtered.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
     }
-    // Add other sort conditions here if needed
 
     return filtered;
   }, [tasks, searchTerm, filterCategory, filterPriority, sortBy]);
@@ -180,16 +226,26 @@ export default function Home() {
   }
 
   const deleteColumn = (columnId: string) => {
-    setColumns(columns.filter(col => col.id !== columnId));
-    // Re-assign tasks from the deleted column to the first available column
-    const firstColumnId = columns.length > 1 ? columns.find(c => c.id !== columnId)?.id : undefined;
-    if (firstColumnId) {
-        setTasks(tasks.map(task => task.columnId === columnId ? {...task, columnId: firstColumnId} : task));
-    } else {
-        // If no other columns, delete tasks
-        setTasks(tasks.filter(task => task.columnId !== columnId));
-    }
+    const newColumns = columns.filter(col => col.id !== columnId);
+    setColumns(newColumns);
+    
+    // Get the ID of the first column to move tasks to, if it exists
+    const firstColumnId = newColumns.length > 0 ? newColumns[0].id : undefined;
+    
+    setTasks(prevTasks => {
+        if (!firstColumnId) {
+             // If no columns are left, delete all tasks that were in the deleted column
+             return prevTasks.filter(task => task.columnId !== columnId);
+        }
+        // Otherwise, re-assign tasks from the deleted column
+        return prevTasks.map(task => 
+            task.columnId === columnId 
+            ? { ...task, columnId: firstColumnId } 
+            : task
+        );
+    });
   }
+
 
   const deleteTask = (id: string) => {
     setTasks(tasks.filter((task) => task.id !== id));
@@ -281,7 +337,7 @@ export default function Home() {
         const overIndex = currentTasks.findIndex(t => t.id === overId);
         if (currentTasks[activeIndex].columnId !== currentTasks[overIndex].columnId) {
           currentTasks[activeIndex].columnId = currentTasks[overIndex].columnId;
-          return arrayMove(currentTasks, activeIndex, overIndex);
+          return arrayMove(currentTasks, activeIndex, overIndex - 1);
         }
         return arrayMove(currentTasks, activeIndex, overIndex);
       });
@@ -322,11 +378,13 @@ export default function Home() {
     }
     
     const isActiveATask = active.data.current?.type === "Task";
-    if (isActiveATask) {
+    const isOverAColumn = over.data.current?.type === "Column";
+
+    if (isActiveATask && isOverAColumn) {
         setTasks(currentTasks => {
             const activeIndex = currentTasks.findIndex(t => t.id === activeId);
-            const overIndex = currentTasks.findIndex(t => t.id === overId);
-            return arrayMove(currentTasks, activeIndex, overIndex);
+            currentTasks[activeIndex].columnId = overId as string;
+            return arrayMove(currentTasks, activeIndex, activeIndex);
         });
     }
   };
@@ -334,6 +392,10 @@ export default function Home() {
   const dropAnimation: DropAnimation = {
     ...defaultDropAnimation,
   };
+  
+  if (!isMounted) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -477,3 +539,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
