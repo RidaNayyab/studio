@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus, GripVertical } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -37,7 +37,7 @@ import { TaskCard } from "@/components/task-card";
 import { Logo } from "@/components/icons";
 import { Input } from "@/components/ui/input";
 import { SortableColumn } from "@/components/sortable-column";
-import type { Task, TaskPriority, SubTask, TaskStatus, Column } from "@/lib/types";
+import type { Task, SubTask, Column } from "@/lib/types";
 
 const initialTasks: Task[] = [
   {
@@ -45,9 +45,7 @@ const initialTasks: Task[] = [
     title: "Setup development environment",
     description: "Install Node.js, Next.js, and Tailwind CSS.",
     dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
-    priority: "High",
-    status: "completed",
-    columnId: "work",
+    columnId: "done",
     subtasks: [
       { id: "sub1", title: "Install Node.js", completed: true, dueDate: new Date() },
       { id: "sub2", title: "Install Next.js", completed: true, dueDate: new Date() },
@@ -58,9 +56,7 @@ const initialTasks: Task[] = [
     title: "Create UI components",
     description: "Build TaskCard and AddTaskForm components.",
     dueDate: new Date(new Date().setDate(new Date().getDate() + 3)),
-    priority: "Medium",
-    status: "incomplete",
-    columnId: "work",
+    columnId: "in-progress",
     subtasks: [],
   },
   {
@@ -68,9 +64,7 @@ const initialTasks: Task[] = [
     title: "Implement state management",
     description: "Use useState for managing tasks, filters, and sorting.",
     dueDate: new Date(new Date().setDate(new Date().getDate() + 5)),
-    priority: "High",
-    status: "incomplete",
-    columnId: "personal",
+    columnId: "todo",
     subtasks: [
       { id: "sub3", title: "Handle main tasks", completed: false, dueDate: new Date(new Date().setDate(new Date().getDate() + 4)), description: "State for top-level tasks" },
       { id: "sub4", title: "Handle sub-tasks", completed: false, dueDate: new Date(new Date().setDate(new Date().getDate() + 4)) },
@@ -81,9 +75,7 @@ const initialTasks: Task[] = [
     title: "Deploy to production",
     description: "Use Firebase App Hosting to deploy the application.",
     dueDate: new Date(new Date().setDate(new Date().getDate() + 7)),
-    priority: "Low",
-    status: "incomplete",
-    columnId: "work",
+    columnId: "backlog",
     subtasks: [],
   },
     {
@@ -91,16 +83,16 @@ const initialTasks: Task[] = [
     title: 'Plan weekend trip',
     description: 'Book flights and accommodation.',
     dueDate: new Date(new Date().setDate(new Date().getDate() + 10)),
-    priority: 'Medium',
-    status: 'incomplete',
-    columnId: 'personal',
+    columnId: 'backlog',
     subtasks: [],
   },
 ];
 
 const initialColumns: Column[] = [
-    { id: 'work', title: 'Work' },
-    { id: 'personal', title: 'Personal' },
+    { id: 'backlog', title: 'Backlog' },
+    { id: 'todo', title: 'To Do' },
+    { id: 'in-progress', title: 'In Progress' },
+    { id: 'done', title: 'Done' },
 ]
 
 export default function Home() {
@@ -111,13 +103,13 @@ export default function Home() {
   const [activeDragColumn, setActiveDragColumn] = useState<Column | null>(null);
   const [newColumnName, setNewColumnName] = useState("");
 
-  const addTask = (task: Omit<Task, "id" | "status" | "subtasks" | "columnId">, columnId: string) => {
+  const addTask = (task: Omit<Task, "id" | "subtasks" | "columnId">) => {
+    const firstColumnId = columns.length > 0 ? columns[0].id : 'backlog';
     const newTask: Task = {
       ...task,
       id: crypto.randomUUID(),
-      status: "incomplete",
       subtasks: [],
-      columnId,
+      columnId: firstColumnId,
     };
     setTasks((prev) => [...prev, newTask]);
   };
@@ -134,20 +126,15 @@ export default function Home() {
 
   const deleteColumn = (columnId: string) => {
     setColumns(columns.filter(col => col.id !== columnId));
-    // Also delete tasks in that column
-    setTasks(tasks.filter(task => task.columnId !== columnId));
+    // Re-assign tasks from the deleted column to the first available column
+    const firstColumnId = columns.length > 1 ? columns.find(c => c.id !== columnId)?.id : undefined;
+    if (firstColumnId) {
+        setTasks(tasks.map(task => task.columnId === columnId ? {...task, columnId: firstColumnId} : task));
+    } else {
+        // If no other columns, delete tasks
+        setTasks(tasks.filter(task => task.columnId !== columnId));
+    }
   }
-
-  const toggleComplete = (id: string) => {
-    setTasks(
-      tasks.map((task) => {
-        if (task.id === id) {
-          return { ...task, status: task.status === "completed" ? "incomplete" : "completed" };
-        }
-        return task;
-      })
-    );
-  };
 
   const deleteTask = (id: string) => {
     setTasks(tasks.filter((task) => task.id !== id));
@@ -233,33 +220,25 @@ export default function Home() {
     const isOverATask = over.data.current?.type === "Task";
     const isOverAColumn = over.data.current?.type === "Column";
 
-    if (!isActiveATask) return;
-
     // Dropping a Task over another Task
     if (isActiveATask && isOverATask) {
       const activeTask = findTaskById(activeId as string);
       const overTask = findTaskById(overId as string);
       if (activeTask && overTask && activeTask.columnId !== overTask.columnId) {
-        setTasks(prev => {
-           const activeIndex = prev.findIndex(t => t.id === activeId);
-           const overIndex = prev.findIndex(t => t.id === overId);
-           const newTasks = arrayMove(prev, activeIndex, overIndex);
-           return newTasks.map((t, index) => {
-             if (index === overIndex) {
-               return {...t, columnId: overTask.columnId};
-             }
-             return t;
-           });
-        });
+        const activeIndex = tasks.findIndex(t => t.id === activeId);
+        tasks[activeIndex].columnId = overTask.columnId;
+        setTasks(arrayMove(tasks, activeIndex, tasks.findIndex(t => t.id === overId)));
       }
     }
     
     // Dropping a Task over a Column
     if (isActiveATask && isOverAColumn) {
-      const activeTask = findTaskById(activeId as string);
-      if (activeTask && activeTask.columnId !== overId) {
-         setTasks(prev => prev.map(t => t.id === activeTask.id ? {...t, columnId: overId as string} : t));
-      }
+        const activeTask = findTaskById(activeId as string);
+        if (activeTask) {
+            const activeIndex = tasks.findIndex(t => t.id === activeId);
+            tasks[activeIndex].columnId = overId as string;
+            setTasks([...tasks]);
+        }
     }
   };
 
@@ -277,21 +256,24 @@ export default function Home() {
     
     const isActiveAColumn = active.data.current?.type === 'Column';
     if(isActiveAColumn) {
-        const activeIndex = columns.findIndex(c => c.id === activeId);
-        const overIndex = columns.findIndex(c => c.id === overId);
-        setColumns(arrayMove(columns, activeIndex, overIndex));
+        setColumns(prev => {
+            const activeIndex = prev.findIndex(c => c.id === activeId);
+            const overIndex = prev.findIndex(c => c.id === overId);
+            return arrayMove(prev, activeIndex, overIndex);
+        });
         return;
     }
     
     const isActiveATask = active.data.current?.type === "Task";
     if (isActiveATask) {
-      const activeIndex = tasks.findIndex(t => t.id === activeId);
-      const overTask = tasks.find(t => t.id === overId);
-      const overIndex = overTask ? tasks.indexOf(overTask) : tasks.length -1;
-      
-      if (activeIndex !== -1 && overIndex !== -1) {
+        const activeIndex = tasks.findIndex(t => t.id === activeId);
+        const overIndex = tasks.findIndex(t => t.id === overId);
+        
+        if (tasks[activeIndex].columnId !== tasks[overIndex].columnId) {
+            tasks[activeIndex].columnId = tasks[overIndex].columnId;
+        }
+
         setTasks(prev => arrayMove(prev, activeIndex, overIndex));
-      }
     }
   };
   
@@ -320,14 +302,8 @@ export default function Home() {
                   <DialogTitle>Add a new task</DialogTitle>
                 </DialogHeader>
                 <AddTaskForm
-                    addTask={(task, columnId) => {
-                        const targetColumnId = columnId || (columns.length > 0 ? columns[0].id : '');
-                        if (targetColumnId) {
-                            addTask(task, targetColumnId);
-                        }
-                    }}
+                    addTask={addTask}
                     setOpen={setDialogOpen}
-                    columns={columns}
                 />
               </DialogContent>
             </Dialog>
@@ -351,7 +327,6 @@ export default function Home() {
                     column={column}
                     tasks={tasks.filter(t => t.columnId === column.id)}
                     deleteColumn={deleteColumn}
-                    onToggleComplete={toggleComplete}
                     onDeleteTask={deleteTask}
                     onAddSubtask={addSubtask}
                     onToggleSubtaskComplete={toggleSubtaskComplete}
@@ -377,7 +352,6 @@ export default function Home() {
             {activeDragTask ? (
               <TaskCard
                 task={activeDragTask}
-                onToggleComplete={() => {}}
                 onDelete={() => {}}
                 onAddSubtask={() => {}}
                 onToggleSubtaskComplete={() => {}}
@@ -389,7 +363,6 @@ export default function Home() {
                     column={activeDragColumn}
                     tasks={tasks.filter(t => t.columnId === activeDragColumn.id)}
                     deleteColumn={deleteColumn}
-                    onToggleComplete={toggleComplete}
                     onDeleteTask={deleteTask}
                     onAddSubtask={addSubtask}
                     onToggleSubtaskComplete={toggleSubtaskComplete}

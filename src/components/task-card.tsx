@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Calendar, Trash2, Plus, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
+import { Calendar, Trash2, Plus, ChevronDown, ChevronUp } from "lucide-react";
 
 import {
   Card,
@@ -15,10 +15,9 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import type { Task, TaskPriority, SubTask } from "@/lib/types";
+import type { Task, SubTask } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +35,6 @@ import { AddSubtaskForm } from "@/components/add-subtask-form";
 
 type TaskCardProps = {
   task: Task;
-  onToggleComplete: (id: string) => void;
   onDelete: (id: string) => void;
   onAddSubtask: (taskId: string, subtask: Omit<SubTask, "id" | "completed">) => void;
   onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
@@ -44,15 +42,9 @@ type TaskCardProps = {
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
 };
 
-const priorityVariant: Record<TaskPriority, "default" | "secondary" | "destructive"> = {
-  Low: "secondary",
-  Medium: "default",
-  High: "destructive",
-};
 
 export function TaskCard({ 
   task, 
-  onToggleComplete, 
   onDelete,
   onAddSubtask,
   onToggleSubtaskComplete,
@@ -61,7 +53,6 @@ export function TaskCard({
 }: TaskCardProps) {
   const [isSubtasksOpen, setSubtasksOpen] = useState(false);
   const [isAddSubtaskOpen, setAddSubtaskOpen] = useState(false);
-  const isCompleted = task.status === "completed";
   
   const subtasksCompleted = task.subtasks.filter(st => st.completed).length;
   const subtasksTotal = task.subtasks.length;
@@ -70,7 +61,6 @@ export function TaskCard({
     <Card
       className={cn(
         "flex flex-col transition-colors w-full",
-        isCompleted && "bg-accent/30",
       )}
     >
       <div
@@ -109,20 +99,10 @@ export function TaskCard({
               </AlertDialog>
           </div>
           <div className="flex items-start gap-4">
-            <Checkbox
-              checked={isCompleted}
-              onCheckedChange={() => onToggleComplete(task.id)}
-              aria-label={`Mark "${task.title}" as ${
-                isCompleted ? "incomplete" : "complete"
-              }`}
-              className="mt-1 h-5 w-5 shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            />
             <div className="flex-grow">
               <CardTitle
                 className={cn(
                   "font-semibold transition-all text-lg pr-8",
-                  isCompleted && "text-muted-foreground line-through"
                 )}
               >
                 {task.title}
@@ -130,7 +110,6 @@ export function TaskCard({
               <CardDescription
                 className={cn(
                   "flex items-center gap-2 pt-2 text-sm",
-                  isCompleted && "text-muted-foreground/80"
                 )}
               >
                 <Calendar className="h-4 w-4" />
@@ -144,7 +123,6 @@ export function TaskCard({
             <p
               className={cn(
                 "text-sm text-muted-foreground",
-                isCompleted && "line-through"
               )}
             >
               {task.description}
@@ -153,7 +131,7 @@ export function TaskCard({
         </CardContent>
       </div>
       <div onClick={(e) => e.stopPropagation()} className="px-6 space-y-4">
-        {(subtasksTotal > 0 || !isCompleted) && <Separator />}
+        {(subtasksTotal > 0) && <Separator />}
 
         <Collapsible open={isSubtasksOpen} onOpenChange={setSubtasksOpen} className="space-y-4">
           {subtasksTotal > 0 && (
@@ -199,31 +177,26 @@ export function TaskCard({
           </CollapsibleContent>
         </Collapsible>
         
-        {!isCompleted && (
-          <Dialog open={isAddSubtaskOpen} onOpenChange={setAddSubtaskOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full">
-                <Plus className="h-4 w-4 mr-1"/> Add Sub-task
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Sub-task to "{task.title}"</DialogTitle>
-              </DialogHeader>
-              <AddSubtaskForm 
-                taskId={task.id}
-                onAddSubtask={onAddSubtask}
-                setOpen={setAddSubtaskOpen}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
+        <Dialog open={isAddSubtaskOpen} onOpenChange={setAddSubtaskOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full">
+              <Plus className="h-4 w-4 mr-1"/> Add Sub-task
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Sub-task to "{task.title}"</DialogTitle>
+            </DialogHeader>
+            <AddSubtaskForm 
+              taskId={task.id}
+              onAddSubtask={onAddSubtask}
+              setOpen={setAddSubtaskOpen}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <CardFooter className="flex items-center justify-between mt-4" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2">
-          <Badge variant={priorityVariant[task.priority]}>{task.priority}</Badge>
-        </div>
       </CardFooter>
     </Card>
   );

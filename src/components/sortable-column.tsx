@@ -14,7 +14,6 @@ type SortableColumnProps = {
   column: Column;
   tasks: Task[];
   deleteColumn: (id: string) => void;
-  onToggleComplete: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onAddSubtask: (taskId: string, subtask: Omit<SubTask, "id" | "completed">) => void;
   onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
@@ -26,7 +25,6 @@ export function SortableColumn({
   column,
   tasks,
   deleteColumn,
-  onToggleComplete,
   onDeleteTask,
   onAddSubtask,
   onToggleSubtaskComplete,
@@ -91,7 +89,6 @@ export function SortableColumn({
                 <SortableTaskCard
                     key={task.id}
                     task={task}
-                    onToggleComplete={onToggleComplete}
                     onDelete={onDeleteTask}
                     onAddSubtask={onAddSubtask}
                     onToggleSubtaskComplete={onToggleSubtaskComplete}
@@ -104,7 +101,7 @@ export function SortableColumn({
                         No tasks yet.
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        Add a new task to this column.
+                        Drag a task here to get started.
                     </p>
                 </div>
             )}

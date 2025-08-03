@@ -9,7 +9,6 @@ import type { Task, SubTask } from "@/lib/types";
 
 type SortableTaskCardProps = {
   task: Task;
-  onToggleComplete: (id: string) => void;
   onDelete: (id: string) => void;
   onAddSubtask: (taskId: string, subtask: Omit<SubTask, "id" | "completed">) => void;
   onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
@@ -38,7 +37,6 @@ export function SortableTaskCard(props: SortableTaskCardProps) {
   };
   
   const classes = cn(
-    "cursor-grab",
     isDragging && "opacity-50"
   );
 
