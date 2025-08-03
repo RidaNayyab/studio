@@ -19,6 +19,7 @@ type SortableColumnProps = {
   onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
   onDeleteSubtask: (taskId: string, subtaskId: string) => void;
   isOverlay?: boolean;
+  isSortingActive?: boolean;
 };
 
 const columnColorMap: Record<string, string> = {
@@ -37,6 +38,7 @@ export function SortableColumn({
   onToggleSubtaskComplete,
   onDeleteSubtask,
   isOverlay,
+  isSortingActive,
 }: SortableColumnProps) {
   const taskIds = useMemo(() => tasks.map(t => t.id), [tasks]);
   
@@ -53,6 +55,7 @@ export function SortableColumn({
       type: 'Column',
       column,
     },
+    disabled: isSortingActive,
   });
 
   const style = {
@@ -69,6 +72,7 @@ export function SortableColumn({
   const headerClasses = cn(
     "flex items-center justify-between p-4 rounded-t-lg",
     isDragging ? "cursor-grabbing" : "cursor-grab",
+    isSortingActive && "cursor-not-allowed"
   );
   
   if (isDragging) {
@@ -90,7 +94,7 @@ export function SortableColumn({
         </Button>
       </div>
       <div className="space-y-4 bg-card/50 p-4 flex-grow min-h-[24rem]">
-        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+        <SortableContext items={taskIds} strategy={verticalListSortingStrategy} disabled={isSortingActive}>
             {tasks.length > 0 ? (
                 tasks.map((task) => (
                 <SortableTaskCard
@@ -100,6 +104,7 @@ export function SortableColumn({
                     onAddSubtask={onAddSubtask}
                     onToggleSubtaskComplete={onToggleSubtaskComplete}
                     onDeleteSubtask={onDeleteSubtask}
+                    isSortingActive={isSortingActive}
                 />
                 ))
             ) : (
@@ -117,3 +122,5 @@ export function SortableColumn({
     </div>
   );
 }
+
+    

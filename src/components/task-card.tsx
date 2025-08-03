@@ -78,11 +78,12 @@ export function TaskCard({
     <Card
       className={cn(
         "flex flex-col transition-colors w-full",
-        isDone && "bg-card/60 grayscale-[50%]"
+        isDone && "bg-card/60 grayscale-[50%]",
+        dragHandleProps ? 'cursor-grab' : 'cursor-default'
       )}
     >
       <div
-        className="flex-grow cursor-grab"
+        className="flex-grow"
         {...dragHandleProps}
       >
         <CardHeader className="relative">
@@ -226,3 +227,5 @@ export function TaskCard({
     </Card>
   );
 }
+
+    

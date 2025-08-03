@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, ArrowUpDown } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -112,6 +112,12 @@ const initialColumns: Column[] = [
     { id: 'done', title: 'Done' },
 ]
 
+const priorityOrder: Record<Priority, number> = {
+    'High': 1,
+    'Medium': 2,
+    'Low': 3,
+};
+
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [columns, setColumns] = useState<Column[]>(initialColumns);
@@ -122,9 +128,11 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<Category | "all">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
+  const [sortBy, setSortBy] = useState<'manual' | 'priority'>('manual');
 
-  const filteredTasks = useMemo(() => {
-    return tasks.filter(task => {
+  const filteredAndSortedTasks = useMemo(() => {
+    // Filtering
+    let filtered = tasks.filter(task => {
         const matchesSearch = searchTerm.trim() === "" ||
             task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -134,7 +142,15 @@ export default function Home() {
 
         return matchesSearch && matchesCategory && matchesPriority;
     });
-  }, [tasks, searchTerm, filterCategory, filterPriority]);
+
+    // Sorting
+    if (sortBy === 'priority') {
+        filtered.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+    }
+    // Add other sort conditions here if needed
+
+    return filtered;
+  }, [tasks, searchTerm, filterCategory, filterPriority, sortBy]);
 
 
   const addTask = (task: Omit<Task, "id" | "subtasks" | "columnId">) => {
@@ -224,11 +240,9 @@ export default function Home() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  const findTaskById = (id: string) => tasks.find((task) => task.id === id);
-  const findColumnById = (id: string) => columns.find(col => col.id === id);
   
   const onDragStart = (event: DragEndEvent) => {
+    if(sortBy !== 'manual') return;
     const { active } = event;
     const { data } = active;
     const { type, task, column } = data.current || {};
@@ -242,6 +256,7 @@ export default function Home() {
   };
 
   const onDragOver = (event: DragOverEvent) => {
+    if(sortBy !== 'manual') return;
     const { active, over } = event;
     if (!over) return;
   
@@ -278,6 +293,8 @@ export default function Home() {
   };
 
   const onDragEnd = (event: DragEndEvent) => {
+    if(sortBy !== 'manual') return;
+
     setActiveDragTask(null);
     setActiveDragColumn(null);
 
@@ -354,6 +371,18 @@ export default function Home() {
                     <SelectItem value="High">High</SelectItem>
                 </SelectContent>
             </Select>
+             <Select value={sortBy} onValueChange={(value) => setSortBy(value as 'manual' | 'priority')}>
+                <SelectTrigger className="w-[140px]">
+                    <div className="flex items-center gap-2">
+                        <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                        <SelectValue placeholder="Sort by" />
+                    </div>
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="manual">Manual</SelectItem>
+                    <SelectItem value="priority">Priority</SelectItem>
+                </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center gap-4">
             <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
@@ -386,17 +415,18 @@ export default function Home() {
           onDragEnd={onDragEnd}
         >
           <div className="flex gap-6 overflow-x-auto pb-4">
-             <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
+             <SortableContext items={columnIds} strategy={horizontalListSortingStrategy} disabled={sortBy !== 'manual'}>
               {columns.map(column => (
                 <SortableColumn 
                     key={column.id}
                     column={column}
-                    tasks={filteredTasks.filter(t => t.columnId === column.id)}
+                    tasks={filteredAndSortedTasks.filter(t => t.columnId === column.id)}
                     deleteColumn={deleteColumn}
                     onDeleteTask={deleteTask}
                     onAddSubtask={addSubtask}
                     onToggleSubtaskComplete={toggleSubtaskComplete}
                     onDeleteSubtask={deleteSubtask}
+                    isSortingActive={sortBy !== 'manual'}
                  />
               ))}
             </SortableContext>
@@ -427,7 +457,7 @@ export default function Home() {
             {activeDragColumn ? (
                  <SortableColumn 
                     column={activeDragColumn}
-                    tasks={filteredTasks.filter(t => t.columnId === activeDragColumn.id)}
+                    tasks={filteredAndSortedTasks.filter(t => t.columnId === activeDragColumn.id)}
                     deleteColumn={deleteColumn}
                     onDeleteTask={deleteTask}
                     onAddSubtask={addSubtask}
@@ -442,3 +472,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

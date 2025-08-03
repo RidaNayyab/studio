@@ -13,6 +13,7 @@ type SortableTaskCardProps = {
   onAddSubtask: (taskId: string, subtask: Omit<SubTask, "id" | "completed">) => void;
   onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
   onDeleteSubtask: (taskId: string, subtaskId: string) => void;
+  isSortingActive?: boolean;
 };
 
 export function SortableTaskCard(props: SortableTaskCardProps) {
@@ -28,7 +29,8 @@ export function SortableTaskCard(props: SortableTaskCardProps) {
     data: {
       type: 'Task',
       task: props.task
-    }
+    },
+    disabled: props.isSortingActive,
   });
 
   const style = {
@@ -37,12 +39,15 @@ export function SortableTaskCard(props: SortableTaskCardProps) {
   };
   
   const classes = cn(
-    isDragging && "opacity-50"
+    isDragging && "opacity-50",
+    props.isSortingActive && "cursor-default"
   );
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} className={classes}>
-      <TaskCard {...props} dragHandleProps={listeners} />
+      <TaskCard {...props} dragHandleProps={props.isSortingActive ? undefined : listeners} />
     </div>
   );
 }
+
+    
