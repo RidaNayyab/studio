@@ -55,6 +55,7 @@ const initialTasks: Task[] = [
     columnId: "done",
     priority: 'High',
     category: 'Work',
+    recurrence: 'none',
     subtasks: [
       { id: "sub1", title: "Install Node.js", completed: true, dueDate: new Date() },
       { id: "sub2", title: "Install Next.js", completed: true, dueDate: new Date() },
@@ -68,6 +69,7 @@ const initialTasks: Task[] = [
     columnId: "in-progress",
     priority: 'Medium',
     category: 'Work',
+    recurrence: 'none',
     subtasks: [],
   },
   {
@@ -78,6 +80,7 @@ const initialTasks: Task[] = [
     columnId: "todo",
     priority: 'High',
     category: 'Work',
+    recurrence: 'none',
     subtasks: [
       { id: "sub3", title: "Handle main tasks", completed: false, dueDate: new Date(new Date().setDate(new Date().getDate() + 4)), description: "State for top-level tasks" },
       { id: "sub4", title: "Handle sub-tasks", completed: false, dueDate: new Date(new Date().setDate(new Date().getDate() + 4)) },
@@ -91,6 +94,7 @@ const initialTasks: Task[] = [
     columnId: "backlog",
     priority: 'Low',
     category: 'Work',
+    recurrence: 'none',
     subtasks: [],
   },
     {
@@ -101,6 +105,7 @@ const initialTasks: Task[] = [
     columnId: 'backlog',
     priority: 'Medium',
     category: 'Personal',
+    recurrence: 'none',
     subtasks: [],
   },
 ];
@@ -472,5 +477,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

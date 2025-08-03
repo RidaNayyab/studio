@@ -1,6 +1,7 @@
 
 export type Priority = "Low" | "Medium" | "High";
 export type Category = "Work" | "Personal" | "Home" | "Other";
+export type Recurrence = "none" | "daily" | "weekly" | "monthly";
 
 export interface SubTask {
   id: string;
@@ -19,6 +20,7 @@ export interface Task {
   subtasks: SubTask[];
   priority: Priority;
   category: Category;
+  recurrence: Recurrence;
 }
 
 export interface Column {

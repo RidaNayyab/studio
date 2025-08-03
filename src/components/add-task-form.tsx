@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useToast } from "@/hooks/use-toast";
-import type { Task, Priority, Category } from "@/lib/types";
+import type { Task, Priority, Category, Recurrence } from "@/lib/types";
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -37,6 +37,7 @@ const formSchema = z.object({
   }),
   priority: z.enum(["Low", "Medium", "High"]),
   category: z.enum(["Work", "Personal", "Home", "Other"]),
+  recurrence: z.enum(["none", "daily", "weekly", "monthly"]),
 });
 
 type AddTaskFormProps = {
@@ -54,6 +55,7 @@ export function AddTaskForm({ addTask, setOpen }: AddTaskFormProps) {
       description: "",
       priority: "Medium",
       category: "Work",
+      recurrence: "none",
     },
   });
 
@@ -155,6 +157,30 @@ export function AddTaskForm({ addTask, setOpen }: AddTaskFormProps) {
                   <SelectItem value="Personal">Personal</SelectItem>
                   <SelectItem value="Home">Home</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="recurrence"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Recurrence</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select recurrence" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />

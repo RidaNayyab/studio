@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Calendar, Trash2, Plus, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
+import { Calendar, Trash2, Plus, ChevronDown, ChevronUp, CheckCircle2, Repeat } from "lucide-react";
 
 import {
   Card,
@@ -134,6 +134,7 @@ export function TaskCard({
               >
                 <Calendar className="h-4 w-4" />
                 <span>Due by {format(task.dueDate, "PPP")}</span>
+                 {task.recurrence !== 'none' && <Repeat className="h-4 w-4 text-muted-foreground" />}
               </CardDescription>
             </div>
           </div>
@@ -227,5 +228,3 @@ export function TaskCard({
     </Card>
   );
 }
-
-    
