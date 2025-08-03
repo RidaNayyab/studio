@@ -16,8 +16,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { Task, SubTask } from "@/lib/types";
+import type { Task, SubTask, Priority } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +43,11 @@ type TaskCardProps = {
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
 };
 
+const priorityStyles: Record<Priority, string> = {
+    High: 'bg-red-500 hover:bg-red-500/80',
+    Medium: 'bg-yellow-500 hover:bg-yellow-500/80',
+    Low: 'bg-green-500 hover:bg-green-500/80',
+}
 
 export function TaskCard({ 
   task, 
@@ -119,6 +125,10 @@ export function TaskCard({
           </div>
         </CardHeader>
         <CardContent className="flex-grow space-y-4" onClick={(e) => e.stopPropagation()}>
+           <div className="flex items-center gap-2">
+            <Badge className={cn("text-primary-foreground", priorityStyles[task.priority])}>{task.priority}</Badge>
+            <Badge variant="secondary">{task.category}</Badge>
+           </div>
           {task.description && (
             <p
               className={cn(

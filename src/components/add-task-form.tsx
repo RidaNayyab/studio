@@ -14,11 +14,18 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useToast } from "@/hooks/use-toast";
-import type { Task } from "@/lib/types";
+import type { Task, Priority, Category } from "@/lib/types";
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -28,6 +35,8 @@ const formSchema = z.object({
   dueDate: z.date({
     required_error: "A due date is required.",
   }),
+  priority: z.enum(["Low", "Medium", "High"]),
+  category: z.enum(["Work", "Personal", "Home", "Other"]),
 });
 
 type AddTaskFormProps = {
@@ -43,11 +52,13 @@ export function AddTaskForm({ addTask, setOpen }: AddTaskFormProps) {
     defaultValues: {
       title: "",
       description: "",
+      priority: "Medium",
+      category: "Work",
     },
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    addTask(values);
+    addTask(values as Omit<Task, "id" | "subtasks" | "columnId">);
     toast({
       title: "Task created!",
       description: "Your new task has been added to the board.",
@@ -103,6 +114,53 @@ export function AddTaskForm({ addTask, setOpen }: AddTaskFormProps) {
               </FormItem>
             )}
           />
+
+        <FormField
+          control={form.control}
+          name="priority"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Priority</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a priority" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Work">Work</SelectItem>
+                  <SelectItem value="Personal">Personal</SelectItem>
+                  <SelectItem value="Home">Home</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         
         <Button type="submit" className="w-full">
           Add Task

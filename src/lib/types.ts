@@ -1,3 +1,7 @@
+
+export type Priority = "Low" | "Medium" | "High";
+export type Category = "Work" | "Personal" | "Home" | "Other";
+
 export interface SubTask {
   id: string;
   title: string;
@@ -13,6 +17,8 @@ export interface Task {
   dueDate: Date;
   columnId: string;
   subtasks: SubTask[];
+  priority: Priority;
+  category: Category;
 }
 
 export interface Column {

@@ -46,6 +46,8 @@ const initialTasks: Task[] = [
     description: "Install Node.js, Next.js, and Tailwind CSS.",
     dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
     columnId: "done",
+    priority: 'High',
+    category: 'Work',
     subtasks: [
       { id: "sub1", title: "Install Node.js", completed: true, dueDate: new Date() },
       { id: "sub2", title: "Install Next.js", completed: true, dueDate: new Date() },
@@ -57,6 +59,8 @@ const initialTasks: Task[] = [
     description: "Build TaskCard and AddTaskForm components.",
     dueDate: new Date(new Date().setDate(new Date().getDate() + 3)),
     columnId: "in-progress",
+    priority: 'Medium',
+    category: 'Work',
     subtasks: [],
   },
   {
@@ -65,6 +69,8 @@ const initialTasks: Task[] = [
     description: "Use useState for managing tasks, filters, and sorting.",
     dueDate: new Date(new Date().setDate(new Date().getDate() + 5)),
     columnId: "todo",
+    priority: 'High',
+    category: 'Work',
     subtasks: [
       { id: "sub3", title: "Handle main tasks", completed: false, dueDate: new Date(new Date().setDate(new Date().getDate() + 4)), description: "State for top-level tasks" },
       { id: "sub4", title: "Handle sub-tasks", completed: false, dueDate: new Date(new Date().setDate(new Date().getDate() + 4)) },
@@ -76,6 +82,8 @@ const initialTasks: Task[] = [
     description: "Use Firebase App Hosting to deploy the application.",
     dueDate: new Date(new Date().setDate(new Date().getDate() + 7)),
     columnId: "backlog",
+    priority: 'Low',
+    category: 'Work',
     subtasks: [],
   },
     {
@@ -84,6 +92,8 @@ const initialTasks: Task[] = [
     description: 'Book flights and accommodation.',
     dueDate: new Date(new Date().setDate(new Date().getDate() + 10)),
     columnId: 'backlog',
+    priority: 'Medium',
+    category: 'Personal',
     subtasks: [],
   },
 ];
