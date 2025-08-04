@@ -41,7 +41,7 @@ const formSchema = z.object({
 });
 
 type AddTaskFormProps = {
-  addTask: (task: Omit<Task, "id" | "subtasks" | "columnId">) => void;
+  addTask: (task: Omit<Task, "id" | "subtasks" | "columnId" | "order" | "createdAt">) => void;
   setOpen: (open: boolean) => void;
 };
 
@@ -60,7 +60,7 @@ export function AddTaskForm({ addTask, setOpen }: AddTaskFormProps) {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    addTask(values as Omit<Task, "id" | "subtasks" | "columnId">);
+    addTask(values as Omit<Task, "id" | "subtasks" | "columnId" | "order" | "createdAt">);
     toast({
       title: "Task created!",
       description: "Your new task has been added to the board.",

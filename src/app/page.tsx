@@ -2,7 +2,8 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Search, ArrowUpDown } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Search, ArrowUpDown, LogOut } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -22,7 +23,22 @@ import {
   horizontalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
+import {
+  collection,
+  doc,
+  onSnapshot,
+  writeBatch,
+  query,
+  orderBy,
+  runTransaction,
+  deleteDoc,
+  setDoc,
+  addDoc,
+  Timestamp,
+} from "firebase/firestore";
 
+import { useAuth } from "@/hooks/use-auth";
+import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -46,77 +62,6 @@ import { Input } from "@/components/ui/input";
 import { SortableColumn } from "@/components/sortable-column";
 import type { Task, SubTask, Column, Category, Priority } from "@/lib/types";
 
-const initialTasks: Task[] = [
-  {
-    id: "1",
-    title: "Setup development environment",
-    description: "Install Node.js, Next.js, and Tailwind CSS.",
-    dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
-    columnId: "done",
-    priority: 'High',
-    category: 'Work',
-    recurrence: 'none',
-    subtasks: [
-      { id: "sub1", title: "Install Node.js", completed: true, dueDate: new Date() },
-      { id: "sub2", title: "Install Next.js", completed: true, dueDate: new Date() },
-    ],
-  },
-  {
-    id: "2",
-    title: "Create UI components",
-    description: "Build TaskCard and AddTaskForm components.",
-    dueDate: new Date(new Date().setDate(new Date().getDate() + 3)),
-    columnId: "in-progress",
-    priority: 'Medium',
-    category: 'Work',
-    recurrence: 'none',
-    subtasks: [],
-  },
-  {
-    id: "3",
-    title: "Implement state management",
-    description: "Use useState for managing tasks, filters, and sorting.",
-    dueDate: new Date(new Date().setDate(new Date().getDate() + 5)),
-    columnId: "todo",
-    priority: 'High',
-    category: 'Work',
-    recurrence: 'none',
-    subtasks: [
-      { id: "sub3", title: "Handle main tasks", completed: false, dueDate: new Date(new Date().setDate(new Date().getDate() + 4)), description: "State for top-level tasks" },
-      { id: "sub4", title: "Handle sub-tasks", completed: false, dueDate: new Date(new Date().setDate(new Date().getDate() + 4)) },
-    ],
-  },
-  {
-    id: "4",
-    title: "Deploy to production",
-    description: "Use Firebase App Hosting to deploy the application.",
-    dueDate: new Date(new Date().setDate(new Date().getDate() + 7)),
-    columnId: "backlog",
-    priority: 'Low',
-    category: 'Work',
-    recurrence: 'none',
-    subtasks: [],
-  },
-    {
-    id: '5',
-    title: 'Plan weekend trip',
-    description: 'Book flights and accommodation.',
-    dueDate: new Date(new Date().setDate(new Date().getDate() + 10)),
-    columnId: 'backlog',
-    priority: 'Medium',
-    category: 'Personal',
-    recurrence: 'none',
-    subtasks: [],
-  },
-];
-
-const initialColumns: Column[] = [
-    { id: 'backlog', title: 'Backlog' },
-    { id: 'todo', title: 'To Do' },
-    { id: 'in-progress', title: 'In Progress' },
-    { id: 'done', title: 'Done' },
-]
-
 const priorityOrder: Record<Priority, number> = {
     'High': 1,
     'Medium': 2,
@@ -124,6 +69,9 @@ const priorityOrder: Record<Priority, number> = {
 };
 
 export default function Home() {
+  const { user, loading, signOut } = useAuth();
+  const router = useRouter();
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [columns, setColumns] = useState<Column[]>([]);
   const [isDialogOpen, setDialogOpen] = useState(false);
@@ -134,68 +82,56 @@ export default function Home() {
   const [filterCategory, setFilterCategory] = useState<Category | "all">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
   const [sortBy, setSortBy] = useState<'manual' | 'priority'>('manual');
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
   
   useEffect(() => {
-    if (typeof window === 'undefined' || !isMounted) return;
-    try {
-        const savedTasks = localStorage.getItem('smarttodoo-tasks');
-        const savedColumns = localStorage.getItem('smarttodoo-columns');
-
-        if (savedTasks) {
-            const parsedTasks: Task[] = JSON.parse(savedTasks).map((task: Task) => ({
-                ...task,
-                dueDate: new Date(task.dueDate),
-                subtasks: task.subtasks.map((st: SubTask) => ({...st, dueDate: new Date(st.dueDate)}))
-            }));
-            setTasks(parsedTasks);
-        } else {
-            setTasks(initialTasks);
-        }
-        
-        if (savedColumns) {
-            setColumns(JSON.parse(savedColumns));
-        } else {
-            setColumns(initialColumns);
-        }
-    } catch (error) {
-        console.error("Failed to load from local storage:", error);
-        setTasks(initialTasks);
-        setColumns(initialColumns);
+    if (!loading && !user) {
+      router.push('/auth');
     }
-  }, [isMounted]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && isMounted) {
-      localStorage.setItem('smarttodoo-tasks', JSON.stringify(tasks));
-    }
-  }, [tasks, isMounted]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && isMounted) {
-        localStorage.setItem('smarttodoo-columns', JSON.stringify(columns));
-    }
-  }, [columns, isMounted]);
+  }, [user, loading, router]);
   
+  useEffect(() => {
+    if (!user) return;
+
+    const tasksQuery = query(collection(db, `users/${user.uid}/tasks`), orderBy("order"));
+    const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
+        const fetchedTasks: Task[] = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                dueDate: (data.dueDate as Timestamp).toDate(),
+                subtasks: data.subtasks.map((st: any) => ({
+                    ...st,
+                    dueDate: (st.dueDate as Timestamp).toDate()
+                }))
+            } as Task
+        });
+        setTasks(fetchedTasks);
+    });
+
+    const columnsQuery = query(collection(db, `users/${user.uid}/columns`), orderBy("order"));
+    const unsubscribeColumns = onSnapshot(columnsQuery, (snapshot) => {
+        const fetchedColumns: Column[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Column));
+        setColumns(fetchedColumns);
+    });
+
+    return () => {
+        unsubscribeTasks();
+        unsubscribeColumns();
+    };
+  }, [user]);
+
 
   const filteredAndSortedTasks = useMemo(() => {
-    // Filtering
     let filtered = tasks.filter(task => {
         const matchesSearch = searchTerm.trim() === "" ||
             task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
-
         const matchesCategory = filterCategory === 'all' || task.category === filterCategory;
         const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
-
         return matchesSearch && matchesCategory && matchesPriority;
     });
 
-    // Sorting
     if (sortBy === 'priority') {
         filtered.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
     }
@@ -204,93 +140,106 @@ export default function Home() {
   }, [tasks, searchTerm, filterCategory, filterPriority, sortBy]);
 
 
-  const addTask = (task: Omit<Task, "id" | "subtasks" | "columnId">) => {
+  const addTask = async (taskData: Omit<Task, "id" | "subtasks" | "columnId" | "order">) => {
+    if (!user) return;
     const firstColumnId = columns.length > 0 ? columns[0].id : 'backlog';
-    const newTask: Task = {
-      ...task,
-      id: crypto.randomUUID(),
+    
+    const newTask: Omit<Task, "id"> = {
+      ...taskData,
       subtasks: [],
       columnId: firstColumnId,
+      order: tasks.length,
+      createdAt: new Date(),
     };
-    setTasks((prev) => [...prev, newTask]);
+    
+    const docRef = await addDoc(collection(db, `users/${user.uid}/tasks`), {
+        ...newTask,
+        dueDate: Timestamp.fromDate(newTask.dueDate),
+    });
   };
   
-  const addColumn = () => {
-    if (!newColumnName.trim()) return;
-    const newColumn: Column = {
-        id: crypto.randomUUID(),
+  const addColumn = async () => {
+    if (!newColumnName.trim() || !user) return;
+    const newColumnData = {
         title: newColumnName.trim(),
+        order: columns.length,
     };
-    setColumns([...columns, newColumn]);
+    const newColumnRef = await addDoc(collection(db, `users/${user.uid}/columns`), newColumnData);
     setNewColumnName("");
   }
 
-  const deleteColumn = (columnId: string) => {
-    const newColumns = columns.filter(col => col.id !== columnId);
-    setColumns(newColumns);
+  const deleteColumn = async (columnId: string) => {
+    if(!user) return;
+    const batch = writeBatch(db);
+    const columnDocRef = doc(db, `users/${user.uid}/columns`, columnId);
+    batch.delete(columnDocRef);
     
-    // Get the ID of the first column to move tasks to, if it exists
-    const firstColumnId = newColumns.length > 0 ? newColumns[0].id : undefined;
-    
-    setTasks(prevTasks => {
-        if (!firstColumnId) {
-             // If no columns are left, delete all tasks that were in the deleted column
-             return prevTasks.filter(task => task.columnId !== columnId);
-        }
-        // Otherwise, re-assign tasks from the deleted column
-        return prevTasks.map(task => 
-            task.columnId === columnId 
-            ? { ...task, columnId: firstColumnId } 
-            : task
-        );
+    // For now, we will just delete tasks in the column.
+    // A more robust solution might move them to a default column.
+    const tasksInColumn = tasks.filter(task => task.columnId === columnId);
+    tasksInColumn.forEach(task => {
+        const taskDocRef = doc(db, `users/${user.uid}/tasks`, task.id);
+        batch.delete(taskDocRef);
     });
+    
+    await batch.commit();
   }
 
 
-  const deleteTask = (id: string) => {
-    setTasks(tasks.filter((task) => task.id !== id));
+  const deleteTask = async (id: string) => {
+    if (!user) return;
+    await deleteDoc(doc(db, `users/${user.uid}/tasks`, id));
   };
   
-  const addSubtask = (taskId: string, subtask: Omit<SubTask, "id" | "completed">) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
+  const addSubtask = async (taskId: string, subtaskData: Omit<SubTask, "id" | "completed">) => {
+    if(!user) return;
+    const taskRef = doc(db, `users/${user.uid}/tasks`, taskId);
+    await runTransaction(db, async (transaction) => {
+        const taskDoc = await transaction.get(taskRef);
+        if (!taskDoc.exists()) throw "Task does not exist!";
+        
+        const currentSubtasks = taskDoc.data().subtasks || [];
         const newSubtask: SubTask = {
-          ...subtask,
-          id: crypto.randomUUID(),
-          completed: false
+          ...subtaskData,
+          id: doc(collection(db, 'users')).id, // Generate a unique ID
+          completed: false,
+          dueDate: Timestamp.fromDate(subtaskData.dueDate) as any,
         };
-        const updatedSubtasks = [...task.subtasks, newSubtask];
-        updatedSubtasks.sort((a,b) => a.dueDate.getTime() - b.dueDate.getTime());
-        return { ...task, subtasks: updatedSubtasks };
-      }
-      return task;
-    }));
+        const updatedSubtasks = [...currentSubtasks, newSubtask];
+        updatedSubtasks.sort((a,b) => (a.dueDate as any).seconds - (b.dueDate as any).seconds);
+        
+        transaction.update(taskRef, { subtasks: updatedSubtasks });
+    });
   };
 
-  const toggleSubtaskComplete = (taskId: string, subtaskId: string) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        return {
-          ...task,
-          subtasks: task.subtasks.map(subtask => 
-            subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
-          )
-        };
-      }
-      return task;
-    }));
+  const toggleSubtaskComplete = async (taskId: string, subtaskId: string) => {
+    if(!user) return;
+    const taskRef = doc(db, `users/${user.uid}/tasks`, taskId);
+     await runTransaction(db, async (transaction) => {
+        const taskDoc = await transaction.get(taskRef);
+        if (!taskDoc.exists()) throw "Task does not exist!";
+        
+        const currentSubtasks = taskDoc.data().subtasks || [];
+        const updatedSubtasks = currentSubtasks.map((st: SubTask) => 
+            st.id === subtaskId ? { ...st, completed: !st.completed } : st
+        );
+        
+        transaction.update(taskRef, { subtasks: updatedSubtasks });
+    });
   };
 
-  const deleteSubtask = (taskId: string, subtaskId: string) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        return {
-          ...task,
-          subtasks: task.subtasks.filter(subtask => subtask.id !== subtaskId)
-        };
-      }
-      return task;
-    }));
+  const deleteSubtask = async (taskId: string, subtaskId: string) => {
+    if(!user) return;
+    const taskRef = doc(db, `users/${user.uid}/tasks`, taskId);
+     await runTransaction(db, async (transaction) => {
+        const taskDoc = await transaction.get(taskRef);
+        if (!taskDoc.exists()) throw "Task does not exist!";
+        
+        const currentSubtasks = taskDoc.data().subtasks || [];
+        const updatedSubtasks = currentSubtasks.filter((st: SubTask) => st.id !== subtaskId);
+        
+        transaction.update(taskRef, { subtasks: updatedSubtasks });
+    });
   };
   
   const columnIds = useMemo(() => columns.map(c => c.id), [columns]);
@@ -317,7 +266,7 @@ export default function Home() {
   };
 
   const onDragOver = (event: DragOverEvent) => {
-    if(sortBy !== 'manual') return;
+    if (sortBy !== 'manual') return;
     const { active, over } = event;
     if (!over) return;
   
@@ -327,34 +276,23 @@ export default function Home() {
     if (activeId === overId) return;
 
     const isActiveATask = active.data.current?.type === "Task";
-    const isOverATask = over.data.current?.type === "Task";
     const isOverAColumn = over.data.current?.type === "Column";
 
-    // Dropping a Task over another Task
-    if (isActiveATask && isOverATask) {
-      setTasks(currentTasks => {
-        const activeIndex = currentTasks.findIndex(t => t.id === activeId);
-        const overIndex = currentTasks.findIndex(t => t.id === overId);
-        if (currentTasks[activeIndex].columnId !== currentTasks[overIndex].columnId) {
-          currentTasks[activeIndex].columnId = currentTasks[overIndex].columnId;
-          return arrayMove(currentTasks, activeIndex, overIndex - 1);
-        }
-        return arrayMove(currentTasks, activeIndex, overIndex);
-      });
-    }
-    
     // Dropping a Task over a Column
     if (isActiveATask && isOverAColumn) {
-        setTasks(currentTasks => {
-          const activeIndex = currentTasks.findIndex(t => t.id === activeId);
-          currentTasks[activeIndex].columnId = overId as string;
-          return arrayMove(currentTasks, activeIndex, activeIndex);
-        })
+      setTasks(currentTasks => {
+        const activeIndex = currentTasks.findIndex(t => t.id === activeId);
+        if (currentTasks[activeIndex].columnId !== overId) {
+            currentTasks[activeIndex].columnId = overId as string;
+            return arrayMove(currentTasks, activeIndex, activeIndex); // Triggers a re-render
+        }
+        return currentTasks;
+      });
     }
   };
 
-  const onDragEnd = (event: DragEndEvent) => {
-    if(sortBy !== 'manual') return;
+  const onDragEnd = async (event: DragEndEvent) => {
+    if(!user || sortBy !== 'manual') return;
 
     setActiveDragTask(null);
     setActiveDragColumn(null);
@@ -367,25 +305,72 @@ export default function Home() {
 
     if (activeId === overId) return;
     
+    const batch = writeBatch(db);
+
     const isActiveAColumn = active.data.current?.type === 'Column';
     if(isActiveAColumn) {
-        setColumns(prev => {
-            const activeIndex = prev.findIndex(c => c.id === activeId);
-            const overIndex = prev.findIndex(c => c.id === overId);
-            return arrayMove(prev, activeIndex, overIndex);
+        const activeIndex = columns.findIndex(c => c.id === activeId);
+        const overIndex = columns.findIndex(c => c.id === overId);
+        const newOrder = arrayMove(columns, activeIndex, overIndex);
+        
+        newOrder.forEach((col, index) => {
+            const colRef = doc(db, `users/${user.uid}/columns`, col.id);
+            batch.update(colRef, { order: index });
         });
+        await batch.commit();
         return;
     }
     
     const isActiveATask = active.data.current?.type === "Task";
-    const isOverAColumn = over.data.current?.type === "Column";
+    if (isActiveATask) {
+        const activeTask = tasks.find(t => t.id === activeId);
+        if(!activeTask) return;
 
-    if (isActiveATask && isOverAColumn) {
-        setTasks(currentTasks => {
-            const activeIndex = currentTasks.findIndex(t => t.id === activeId);
-            currentTasks[activeIndex].columnId = overId as string;
-            return arrayMove(currentTasks, activeIndex, activeIndex);
+        let newTasksArray = [...tasks];
+        const activeIndex = newTasksArray.findIndex(t => t.id === activeId);
+        const overIndex = newTasksArray.findIndex(t => t.id === overId);
+        
+        const isOverATask = over.data.current?.type === "Task";
+        const isOverAColumn = over.data.current?.type === "Column";
+
+        let newColumnId = activeTask.columnId;
+        if(isOverAColumn) {
+            newColumnId = overId as string;
+        } else if (isOverATask) {
+            const overTask = tasks.find(t => t.id === overId);
+            if(overTask) newColumnId = overTask.columnId;
+        }
+
+        // Update the task's column ID in the local state first for immediate UI feedback
+        newTasksArray[activeIndex] = { ...newTasksArray[activeIndex], columnId: newColumnId };
+
+        // Reorder tasks within the new column
+        const tasksInNewColumn = newTasksArray.filter(t => t.columnId === newColumnId);
+        const activeTaskIndexInNewCol = tasksInNewColumn.findIndex(t => t.id === activeId);
+        const overTaskIndexInNewCol = tasksInNewColumn.findIndex(t => t.id === overId);
+
+        let finalTasksArray;
+        if (isOverAColumn && tasksInNewColumn.length === 1) {
+            // Dropped on an empty column
+            finalTasksArray = newTasksArray;
+        } else {
+            // Simulating arrayMove for visual ordering before batch update
+            const reorderedTasksInColumn = arrayMove(tasksInNewColumn, activeTaskIndexInNewCol, overTaskIndexInNewCol);
+            
+            let otherTasks = newTasksArray.filter(t => t.columnId !== newColumnId);
+            finalTasksArray = [...otherTasks, ...reorderedTasksInColumn];
+        }
+
+        // Update Firestore
+        const taskRef = doc(db, `users/${user.uid}/tasks`, activeId as string);
+        batch.update(taskRef, { columnId: newColumnId });
+        
+        finalTasksArray.forEach((task, index) => {
+            const taskDocRef = doc(db, `users/${user.uid}/tasks`, task.id);
+            batch.update(taskDocRef, { order: index });
         });
+
+        await batch.commit();
     }
   };
   
@@ -393,8 +378,12 @@ export default function Home() {
     ...defaultDropAnimation,
   };
   
-  if (!isMounted) {
-    return null; // Or a loading spinner
+  if (loading || !user) {
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <div className="text-lg">Loading...</div>
+        </div>
+    );
   }
 
   return (
@@ -469,6 +458,10 @@ export default function Home() {
                 />
               </DialogContent>
             </Dialog>
+            <Button variant="ghost" onClick={signOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+            </Button>
           </div>
         </div>
       </header>
@@ -539,5 +532,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

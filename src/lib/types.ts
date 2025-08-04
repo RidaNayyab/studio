@@ -21,9 +21,12 @@ export interface Task {
   priority: Priority;
   category: Category;
   recurrence: Recurrence;
+  order: number;
+  createdAt: Date;
 }
 
 export interface Column {
     id: string;
     title: string;
+    order: number;
 }
