@@ -96,14 +96,17 @@ export default function Home() {
     const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
         const fetchedTasks: Task[] = snapshot.docs.map(doc => {
             const data = doc.data();
+            const dueDate = data.dueDate ? (data.dueDate as Timestamp).toDate() : new Date();
+            const subtasks = data.subtasks ? data.subtasks.map((st: any) => ({
+                ...st,
+                dueDate: st.dueDate ? (st.dueDate as Timestamp).toDate() : new Date()
+            })) : [];
+
             return {
                 id: doc.id,
                 ...data,
-                dueDate: (data.dueDate as Timestamp).toDate(),
-                subtasks: data.subtasks.map((st: any) => ({
-                    ...st,
-                    dueDate: (st.dueDate as Timestamp).toDate()
-                }))
+                dueDate,
+                subtasks,
             } as Task
         });
         setTasks(fetchedTasks);
@@ -142,7 +145,8 @@ export default function Home() {
 
   const addTask = async (taskData: Omit<Task, "id" | "subtasks" | "columnId" | "order">) => {
     if (!user) return;
-    const firstColumnId = columns.length > 0 ? columns[0].id : 'backlog';
+    const firstColumn = columns.find(c => c.order === 0);
+    const firstColumnId = firstColumn ? firstColumn.id : 'backlog';
     
     const newTask: Omit<Task, "id"> = {
       ...taskData,
@@ -174,8 +178,6 @@ export default function Home() {
     const columnDocRef = doc(db, `users/${user.uid}/columns`, columnId);
     batch.delete(columnDocRef);
     
-    // For now, we will just delete tasks in the column.
-    // A more robust solution might move them to a default column.
     const tasksInColumn = tasks.filter(task => task.columnId === columnId);
     tasksInColumn.forEach(task => {
         const taskDocRef = doc(db, `users/${user.uid}/tasks`, task.id);
@@ -201,7 +203,7 @@ export default function Home() {
         const currentSubtasks = taskDoc.data().subtasks || [];
         const newSubtask: SubTask = {
           ...subtaskData,
-          id: doc(collection(db, 'users')).id, // Generate a unique ID
+          id: doc(collection(db, 'users')).id, 
           completed: false,
           dueDate: Timestamp.fromDate(subtaskData.dueDate) as any,
         };
@@ -341,27 +343,22 @@ export default function Home() {
             if(overTask) newColumnId = overTask.columnId;
         }
 
-        // Update the task's column ID in the local state first for immediate UI feedback
         newTasksArray[activeIndex] = { ...newTasksArray[activeIndex], columnId: newColumnId };
 
-        // Reorder tasks within the new column
         const tasksInNewColumn = newTasksArray.filter(t => t.columnId === newColumnId);
         const activeTaskIndexInNewCol = tasksInNewColumn.findIndex(t => t.id === activeId);
         const overTaskIndexInNewCol = tasksInNewColumn.findIndex(t => t.id === overId);
 
         let finalTasksArray;
         if (isOverAColumn && tasksInNewColumn.length === 1) {
-            // Dropped on an empty column
             finalTasksArray = newTasksArray;
         } else {
-            // Simulating arrayMove for visual ordering before batch update
             const reorderedTasksInColumn = arrayMove(tasksInNewColumn, activeTaskIndexInNewCol, overTaskIndexInNewCol);
             
             let otherTasks = newTasksArray.filter(t => t.columnId !== newColumnId);
             finalTasksArray = [...otherTasks, ...reorderedTasksInColumn];
         }
 
-        // Update Firestore
         const taskRef = doc(db, `users/${user.uid}/tasks`, activeId as string);
         batch.update(taskRef, { columnId: newColumnId });
         

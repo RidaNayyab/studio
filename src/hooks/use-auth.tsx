@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut as firebaseSignOut, User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, addDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
@@ -36,10 +36,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           
           // Create default columns for new user
           const columnsCollectionRef = collection(db, `users/${user.uid}/columns`);
-          await addDoc(columnsCollectionRef, { title: 'Backlog', order: 0 });
-          await addDoc(columnsCollectionRef, { title: 'To Do', order: 1 });
-          await addDoc(columnsCollectionRef, { title: 'In Progress', order: 2 });
-          await addDoc(columnsCollectionRef, { title: 'Done', order: 3 });
+          await addDoc(columnsCollectionRef, { title: 'Backlog', order: 0, id: 'backlog' });
+          await addDoc(columnsCollectionRef, { title: 'To Do', order: 1, id: 'todo' });
+          await addDoc(columnsCollectionRef, { title: 'In Progress', order: 2, id: 'in-progress' });
+          await addDoc(columnsCollectionRef, { title: 'Done', order: 3, id: 'done' });
         }
         setUser(user);
       } else {
